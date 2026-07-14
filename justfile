@@ -1,41 +1,19 @@
-set unstable
-set lists
-
-set shell := ["bash", "-euo", "pipefail", "-c"]
-
-crates := "axi-ad9361 axi-dma axi-uart16550 axi-uartlite"
-
-default:
-    @just --list
-
-all: check fmt-check clippy build
+# Run every check CI runs.
+all: check clippy fmt docs cross-check
 
 check:
-    @for crate in {{crates}}; do \
-      echo "==> just check ($crate)"; \
-      (cd "$crate" && just check); \
-    done
-
-fmt:
-    @for crate in {{crates}}; do \
-      echo "==> just fmt ($crate)"; \
-      (cd "$crate" && just fmt); \
-    done
-
-fmt-check:
-    @for crate in {{crates}}; do \
-      echo "==> just check-fmt ($crate)"; \
-      (cd "$crate" && just check-fmt); \
-    done
+    cargo check --workspace
+    cd axi-dma && cargo check --features portable-atomic
 
 clippy:
-    @for crate in {{crates}}; do \
-      echo "==> just clippy ($crate)"; \
-      (cd "$crate" && just clippy); \
-    done
+    cargo clippy --workspace -- -D warnings
 
-build:
-    @for crate in {{crates}}; do \
-      echo "==> just build ($crate)"; \
-      (cd "$crate" && just build); \
-    done
+fmt:
+    cargo fmt --all -- --check
+
+docs:
+    RUSTDOCFLAGS="--cfg docsrs -Z unstable-options --generate-link-to-definition" cargo +nightly doc --workspace --no-deps
+
+cross-check:
+    cargo build --workspace --target armv7-unknown-linux-gnueabihf
+    cargo build --workspace --target armv7a-none-eabihf

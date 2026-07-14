@@ -11,12 +11,13 @@ stages:
 
 .common_setup:
   cache:
-    paths: 
+    paths:
       - .cargo/registry
       - .cargo/git
       - .cargo/bin
       - axi-uart16550/target/
       - axi-uartlite/target/
+      - axi-dma/target/
     key: ${CI_COMMIT_REF_SLUG}
 
 .rust_setup_cross_compilation:
@@ -28,3 +29,4 @@ stages:
 include:
   - local: '.gitlab/ci/axi-uartlite.yml'
   - local: '.gitlab/ci/axi-uart16550.yml'
+  - local: '.gitlab/ci/axi-dma.yml'
