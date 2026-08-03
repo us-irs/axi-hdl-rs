@@ -9,7 +9,7 @@ repository = "https://egit.irs.uni-stuttgart.de/rust/axi-uart16550"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-derive-mmio = "0.7"
+derive-mmio = "0.8"
 bitbybit = "2"
 arbitrary-int = "2"
 nb = "1"

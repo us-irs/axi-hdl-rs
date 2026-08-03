@@ -154,9 +154,9 @@ dependencies = [
 
 [[package]]
 name = "derive-mmio"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47489b818beeb4de9536dd034671feb768ca6453227e4deaf56883750431db58"
+checksum = "acd34ba795703e849ab4136e8886fa2140935e2e27640d22c7da6ef5796324af"
 dependencies = [
  "derive-mmio-macro",
  "rustversion",
@@ -164,9 +164,9 @@ dependencies = [
 
 [[package]]
 name = "derive-mmio-macro"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12b6d4985d9657a9c8b7aa5afd3a7869b6d6740f7574d9b7bdb90689a4d1d6e8"
+checksum = "bb3c030cba3e3eb0fac8a6877210e23e521535f725b72b137d1d5b8b0085c077"
 dependencies = [
  "proc-macro2",
  "quote",
