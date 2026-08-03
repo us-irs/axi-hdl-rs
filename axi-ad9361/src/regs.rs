@@ -360,6 +360,9 @@ pub mod dac {
         frame: u32,
         status1: u32,
         dac_status2: u32,
+        /// Bit 0: interface status. Set if there are no errors; if unset, there are errors and
+        /// software may try resetting the core.
+        #[mmio(PureRead)]
         dac_status3: u32,
         dac_clksel: u32,
         _gap9: u32,
@@ -454,6 +457,7 @@ pub struct Registers {
     tdd_tx_dp_off_2: u32,
 }
 
+static_assertions::const_assert_eq!(core::mem::offset_of!(Registers, dac), 0x1000);
 static_assertions::const_assert_eq!(core::mem::size_of::<Registers>(), 0x20F0);
 
 impl Registers {
