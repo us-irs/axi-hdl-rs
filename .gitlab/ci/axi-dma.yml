@@ -1,0 +1,47 @@
+check-dma:
+  stage: stage1
+  script:
+    - cd axi-dma
+    - cargo check
+
+check-dma-portable-atomic:
+  stage: stage1
+  script:
+    - cd axi-dma
+    - cargo check --features portable-atomic
+
+format-dma:
+  stage: stage1
+  script:
+    - rustup component add rustfmt
+    - cd axi-dma
+    - cargo fmt --all -- --check
+
+clippy-dma:
+  stage: stage1
+  script:
+    - rustup component add clippy
+    - cd axi-dma
+    - cargo clippy -- -D warnings
+
+docs-dma:
+  stage: stage1
+  before_script:
+    - rustup install nightly
+  script:
+    - cd axi-dma
+    - RUSTDOCFLAGS="--cfg docsrs -Z unstable-options --generate-link-to-definition" cargo +nightly doc --no-deps
+
+cross-check-armv7-linux-dma:
+  extends: .rust_setup_cross_compilation
+  stage: stage2
+  script:
+    - cd axi-dma
+    - cargo build --target armv7-unknown-linux-gnueabihf
+
+cross-check-armv7-embedded-dma:
+  extends: .rust_setup_cross_compilation
+  stage: stage2
+  script:
+    - cd axi-dma
+    - cargo build --target armv7a-none-eabihf

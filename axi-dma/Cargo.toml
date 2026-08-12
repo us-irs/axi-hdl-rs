@@ -1,13 +1,29 @@
 [package]
 name = "axi-dma"
 version = "0.1.0"
+rust-version = "1.88.0"
 edition = "2024"
 
 [dependencies]
 derive-mmio = "0.8"
+thiserror = { version = "2", default-features = false }
 bitbybit = "2"
 static_assertions = "1.1"
 arbitrary-int = "2"
 vcell = "0.1"
+embassy-sync = "0.8"
+portable-atomic = { version = "1", optional = true }
+embedded-io = "0.7"
+embedded-io-async = "0.7"
 
 defmt = { version = "1", optional = true }
+
+[features]
+default = ["1-waker"]
+1-waker = []
+2-wakers = []
+4-wakers = []
+8-wakers = []
+16-wakers = []
+32-wakers = []
+portable-atomic = ["dep:portable-atomic"]
