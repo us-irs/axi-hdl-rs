@@ -35,8 +35,8 @@
 //! ## Cargo features
 //!
 //! - `1-waker`, `2-wakers`, `4-wakers`, `8-wakers`, `16-wakers`, `32-wakers` select
-//!   [`NUM_WAKERS`], the size of the global waker table backing [`DmaWriterAsync`]. Only one of
-//!   these can be active at a time. Each concurrently-live async writer (each `waker_index`
+//!   [`NUM_TX_WAKERS`], the size of the global waker table backing [`DmaWriterAsync`]. Only one of
+//!   these can be active at a time. Each concurrently-live async writer (each `tx_waker_index`
 //!   passed to [`DmaController::take_writer_async`]) needs its own slot, so this bounds how many
 //!   independent async MM2S channels can be in flight across all [`DmaController`] instances at
 //!   once, not just on a single controller. `1-waker` is the default and covers the common case
@@ -73,33 +73,34 @@ pub mod regs;
 
 /// 1 waker (default).
 #[cfg(feature = "1-waker")]
-pub const NUM_WAKERS: usize = 1;
+pub const NUM_TX_WAKERS: usize = 1;
 /// 2 wakers
 #[cfg(feature = "2-wakers")]
-pub const NUM_WAKERS: usize = 2;
+pub const NUM_TX_WAKERS: usize = 2;
 /// 4 wakers
 #[cfg(feature = "4-wakers")]
-pub const NUM_WAKERS: usize = 4;
+pub const NUM_TX_WAKERS: usize = 4;
 /// 8 wakers
 #[cfg(feature = "8-wakers")]
-pub const NUM_WAKERS: usize = 8;
+pub const NUM_TX_WAKERS: usize = 8;
 /// 16 wakers
 #[cfg(feature = "16-wakers")]
-pub const NUM_WAKERS: usize = 16;
+pub const NUM_TX_WAKERS: usize = 16;
 /// 32 wakers
 #[cfg(feature = "32-wakers")]
-pub const NUM_WAKERS: usize = 32;
+pub const NUM_TX_WAKERS: usize = 32;
 
-static WAKERS: [AtomicWaker; NUM_WAKERS] = [const { AtomicWaker::new() }; NUM_WAKERS];
-static SIMPLE_TRANSFER_DONE: [AtomicBool; NUM_WAKERS] =
-    [const { AtomicBool::new(false) }; NUM_WAKERS];
-/// Per-slot error outcome, set alongside `SIMPLE_TRANSFER_DONE` by [`DmaWriterAsync::on_interrupt`]
+static TX_WAKERS: [AtomicWaker; NUM_TX_WAKERS] = [const { AtomicWaker::new() }; NUM_TX_WAKERS];
+static TX_TRANSFER_DONE: [AtomicBool; NUM_TX_WAKERS] =
+    [const { AtomicBool::new(false) }; NUM_TX_WAKERS];
+/// Per-slot error outcome, set alongside `TX_TRANSFER_DONE` by [`DmaWriterAsync::on_interrupt`]
 /// so the task woken by that flag can tell a failed transfer from a completed one and recover the
 /// [`DmaTransferError`] detail; see [`DmaTransferError::to_bits`]/[`DmaTransferError::from_bits`].
-static TRANSFER_ERROR: [AtomicU8; NUM_WAKERS] = [const { AtomicU8::new(0) }; NUM_WAKERS];
+static TX_TRANSFER_ERROR: [AtomicU8; NUM_TX_WAKERS] = [const { AtomicU8::new(0) }; NUM_TX_WAKERS];
 /// Global ownership table for waker slots, shared by every [`DmaController`] instance, since
-/// `WAKERS`/`SIMPLE_TRANSFER_DONE` are global too. Claimed atomically via [`claim_waker`].
-static WAKER_TAKEN: [AtomicBool; NUM_WAKERS] = [const { AtomicBool::new(false) }; NUM_WAKERS];
+/// `TX_WAKERS`/`TX_TRANSFER_DONE` are global too. Claimed atomically via [`claim_tx_waker`].
+static TX_WAKER_TAKEN: [AtomicBool; NUM_TX_WAKERS] =
+    [const { AtomicBool::new(false) }; NUM_TX_WAKERS];
 
 /// Number of times [`DmaController::new`] polls a channel's `reset` bit before giving up.
 ///
@@ -138,25 +139,25 @@ pub struct InvalidBufferLengthError {
     pub len: usize,
 }
 
-/// `waker_index` is out of range for the crate's configured [`NUM_WAKERS`].
+/// `tx_waker_index` is out of range for the crate's configured [`NUM_TX_WAKERS`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 #[error("invalid waker slot index: {0}")]
-pub struct InvalidWakerIndexError(pub usize);
+pub struct InvalidTxWakerIndexError(pub usize);
 
-/// `waker_index` was already claimed by another async writer/reader.
+/// `tx_waker_index` was already claimed by another async writer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
-#[error("waker slot index {0} is already in use by another async writer/reader")]
-pub struct WakerIndexInUseError(pub usize);
+#[error("waker slot index {0} is already in use by another async writer")]
+pub struct TxWakerIndexInUseError(pub usize);
 
-/// Error returned when claiming a waker slot for an async writer/reader fails.
+/// Error returned when claiming a waker slot for an async writer fails.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum TakeAsyncError {
-    /// See [`InvalidWakerIndexError`].
+    /// See [`InvalidTxWakerIndexError`].
     #[error(transparent)]
-    InvalidWakerIndex(#[from] InvalidWakerIndexError),
-    /// See [`WakerIndexInUseError`].
+    InvalidWakerIndex(#[from] InvalidTxWakerIndexError),
+    /// See [`TxWakerIndexInUseError`].
     #[error(transparent)]
-    WakerIndexInUse(#[from] WakerIndexInUseError),
+    WakerIndexInUse(#[from] TxWakerIndexInUseError),
 }
 
 /// Reports the underlying DMA/SG error bits latched alongside a channel's `error_interrupt`
@@ -176,9 +177,9 @@ pub struct DmaTransferError {
 impl DmaTransferError {
     const PRESENT_BIT: u8 = 0b1000;
 
-    /// Packs this error into a single byte for storage in [`TRANSFER_ERROR`], which needs a
+    /// Packs this error into a single byte for storage in [`TX_TRANSFER_ERROR`], which needs a
     /// lock-free `Copy` representation to hand an error from the interrupt handler to the task
-    /// woken by the matching [`SIMPLE_TRANSFER_DONE`] slot.
+    /// woken by the matching [`TX_TRANSFER_DONE`] slot.
     #[inline]
     const fn to_bits(self) -> u8 {
         Self::PRESENT_BIT
@@ -188,7 +189,7 @@ impl DmaTransferError {
     }
 
     /// Inverse of [`Self::to_bits`]. Returns `None` for `0`, the initial/no-error state of
-    /// [`TRANSFER_ERROR`]'s slots.
+    /// [`TX_TRANSFER_ERROR`]'s slots.
     #[inline]
     const fn from_bits(bits: u8) -> Option<Self> {
         if bits & Self::PRESENT_BIT == 0 {
@@ -277,14 +278,14 @@ impl DmaController {
     /// This API can be used to retrieve an async DMA writer once.
     pub fn take_writer_async(
         &mut self,
-        waker_index: usize,
+        tx_waker_index: usize,
     ) -> Result<Option<DmaWriterAsync>, TakeAsyncError> {
         if self.writer_taken {
             return Ok(None);
         }
         // Safety: writer ownership checked above; steal_writer_async claims the waker
         // slot (or fails) before we commit to writer_taken below.
-        let writer = unsafe { self.steal_writer_async(waker_index)? };
+        let writer = unsafe { self.steal_writer_async(tx_waker_index)? };
         self.writer_taken = true;
         Ok(Some(writer))
     }
@@ -296,14 +297,14 @@ impl DmaController {
     /// Allows creating multiple handles to the same peripheral, which can lead to data races.
     pub unsafe fn steal_writer_async(
         &mut self,
-        waker_index: usize,
+        tx_waker_index: usize,
     ) -> Result<DmaWriterAsync, TakeAsyncError> {
-        claim_waker(waker_index)?;
+        claim_tx_waker(tx_waker_index)?;
         let regs = unsafe { self.regs.steal_mm2s() };
         let token = DmaTxToken {
             // SAFETY: Only converted to primitive address
             base_addr: unsafe { regs.ptr() } as usize,
-            waker_index,
+            tx_waker_index,
         };
         Ok(DmaWriterAsync { regs, token })
     }
@@ -354,14 +355,14 @@ impl DmaController {
     }
 }
 
-/// Atomically claims `waker_index` in the global [`WAKER_TAKEN`] table.
-fn claim_waker(waker_index: usize) -> Result<(), TakeAsyncError> {
-    if waker_index >= NUM_WAKERS {
-        return Err(InvalidWakerIndexError(waker_index).into());
+/// Atomically claims `tx_waker_index` in the global [`TX_WAKER_TAKEN`] table.
+fn claim_tx_waker(tx_waker_index: usize) -> Result<(), TakeAsyncError> {
+    if tx_waker_index >= NUM_TX_WAKERS {
+        return Err(InvalidTxWakerIndexError(tx_waker_index).into());
     }
-    WAKER_TAKEN[waker_index]
+    TX_WAKER_TAKEN[tx_waker_index]
         .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
-        .map_err(|_| WakerIndexInUseError(waker_index))?;
+        .map_err(|_| TxWakerIndexInUseError(tx_waker_index))?;
     Ok(())
 }
 
@@ -454,7 +455,7 @@ pub struct DmaWriterAsync {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DmaTxToken {
     base_addr: usize,
-    waker_index: usize,
+    tx_waker_index: usize,
 }
 
 impl DmaTxToken {
@@ -466,8 +467,8 @@ impl DmaTxToken {
 
     /// The waker slot this token's writer was constructed with.
     #[inline]
-    pub fn waker_index(&self) -> usize {
-        self.waker_index
+    pub fn tx_waker_index(&self) -> usize {
+        self.tx_waker_index
     }
 
     /// Constructs a transfer token from a raw base address and waker index, e.g. for use in an
@@ -477,13 +478,13 @@ impl DmaTxToken {
     /// # Safety
     ///
     /// The caller must ensure `base_addr` is the real base address of the MM2S register block
-    /// whose completion interrupt is being serviced, and that `waker_index` matches the slot
+    /// whose completion interrupt is being serviced, and that `tx_waker_index` matches the slot
     /// originally passed to the corresponding `take_writer_async` call.
     #[inline]
-    pub unsafe fn steal(waker_index: usize, base_addr: usize) -> Self {
+    pub unsafe fn steal(tx_waker_index: usize, base_addr: usize) -> Self {
         Self {
             base_addr,
-            waker_index,
+            tx_waker_index,
         }
     }
 }
@@ -501,8 +502,8 @@ impl DmaWriterAsync {
     /// [`Self::on_interrupt`] called from your interrupt handler.
     pub async fn write(&mut self, buf: &[u8]) -> Result<(), DmaWriteError> {
         let token = self.token;
-        SIMPLE_TRANSFER_DONE[token.waker_index].store(false, Ordering::Relaxed);
-        TRANSFER_ERROR[token.waker_index].store(0, Ordering::Relaxed);
+        TX_TRANSFER_DONE[token.tx_waker_index].store(false, Ordering::Relaxed);
+        TX_TRANSFER_ERROR[token.tx_waker_index].store(0, Ordering::Relaxed);
         // Enable relevant interrupts.
         self.regs.modify_control(|val| {
             val.with_interrupt_on_complete(true)
@@ -517,9 +518,9 @@ impl DmaWriterAsync {
         );
         start_write(&mut self.regs, buf)?;
         poll_fn(move |cx| {
-            WAKERS[token.waker_index].register(cx.waker());
+            TX_WAKERS[token.tx_waker_index].register(cx.waker());
 
-            if SIMPLE_TRANSFER_DONE[token.waker_index].load(Ordering::Relaxed) {
+            if TX_TRANSFER_DONE[token.tx_waker_index].load(Ordering::Relaxed) {
                 return core::task::Poll::Ready(());
             }
             core::task::Poll::Pending
@@ -527,9 +528,9 @@ impl DmaWriterAsync {
         .await;
         // `on_interrupt` stores the error (if any) before marking the slot done, so it's always
         // visible here once the transfer has settled.
-        if let Some(error) =
-            DmaTransferError::from_bits(TRANSFER_ERROR[token.waker_index].load(Ordering::Relaxed))
-        {
+        if let Some(error) = DmaTransferError::from_bits(
+            TX_TRANSFER_ERROR[token.tx_waker_index].load(Ordering::Relaxed),
+        ) {
             return Err(error.into());
         }
         Ok(())
@@ -574,10 +575,10 @@ impl DmaWriterAsync {
         // fails rather than completes.
         if status.completion_interrupt() || error.is_some() {
             if let Some(error) = error {
-                TRANSFER_ERROR[token.waker_index].store(error.to_bits(), Ordering::Relaxed);
+                TX_TRANSFER_ERROR[token.tx_waker_index].store(error.to_bits(), Ordering::Relaxed);
             }
-            SIMPLE_TRANSFER_DONE[token.waker_index].store(true, Ordering::Relaxed);
-            WAKERS[token.waker_index].wake();
+            TX_TRANSFER_DONE[token.tx_waker_index].store(true, Ordering::Relaxed);
+            TX_WAKERS[token.tx_waker_index].wake();
         }
         if status.completion_interrupt() {
             regs.write_status(regs::fields::Status::ZERO.with_completion_interrupt(true));
