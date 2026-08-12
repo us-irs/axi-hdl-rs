@@ -1,11 +1,11 @@
 [package]
 name = "axi-uart16550"
-version = "0.2.1"
+version = "0.3.0"
 description = "AXI UART16550 IP core driver"
 rust-version = "1.87.0"
 edition = "2024"
-homepage = "https://egit.irs.uni-stuttgart.de/rust/axi-uart16550"
-repository = "https://egit.irs.uni-stuttgart.de/rust/axi-uart16550"
+homepage = "https://github.com/us-irs/axi-hdl-rs"
+repository = "https://github.com/us-irs/axi-hdl-rs"
 license = "MIT OR Apache-2.0"
 
 [dependencies]

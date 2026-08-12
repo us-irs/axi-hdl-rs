@@ -5,28 +5,48 @@ image: rust:latest
 variables:
   CARGO_HOME: ${CI_PROJECT_DIR}/.cargo
 
-stages:
-  - stage1
-  - stage2
+cache:
+  paths:
+    - .cargo/registry
+    - .cargo/git
+    - .cargo/bin
+    - target/
+  key: ${CI_COMMIT_REF_SLUG}
 
-.common_setup:
-  cache:
-    paths:
-      - .cargo/registry
-      - .cargo/git
-      - .cargo/bin
-      - axi-uart16550/target/
-      - axi-uartlite/target/
-      - axi-dma/target/
-    key: ${CI_COMMIT_REF_SLUG}
+check:
+  script:
+    - cargo check --workspace
+    - cargo check -p axi-dma --features portable-atomic
+    - cargo check -p axi-uart16550 --features portable-atomic
+    - cargo check -p axi-uartlite --features portable-atomic
 
-.rust_setup_cross_compilation:
-  extends: .common_setup
+build:
+  script:
+    - cargo build --workspace
+    - cargo build -p axi-dma --features portable-atomic
+    - cargo build -p axi-uart16550 --features portable-atomic
+    - cargo build -p axi-uartlite --features portable-atomic
+
+clippy:
+  script:
+    - rustup component add clippy
+    - cargo clippy --workspace -- -D warnings
+
+fmt:
+  script:
+    - rustup component add rustfmt
+    - cargo fmt --all -- --check
+
+docs:
+  before_script:
+    - rustup install nightly
+  script:
+    - RUSTDOCFLAGS="--cfg docsrs -Z unstable-options --generate-link-to-definition" cargo +nightly doc --workspace --no-deps
+
+cross-check:
   before_script:
     - rustup target add armv7-unknown-linux-gnueabihf
     - rustup target add armv7a-none-eabihf
-
-include:
-  - local: '.gitlab/ci/axi-uartlite.yml'
-  - local: '.gitlab/ci/axi-uart16550.yml'
-  - local: '.gitlab/ci/axi-dma.yml'
+  script:
+    - cargo build --workspace --target armv7-unknown-linux-gnueabihf
+    - cargo build --workspace --target armv7a-none-eabihf
