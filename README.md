@@ -1,7 +1,8 @@
-Rust Drivers for HDL cores
+Rust Drivers for AXI HDL cores
 =======
 
-Collection of native Rust driver for various HDL cores.
+Collection of native Rust driver for various AXI HDL cores which are very common in the AMD
+ecosystem.
 
 Currently contains drivers for the following HDL blocks:
 
