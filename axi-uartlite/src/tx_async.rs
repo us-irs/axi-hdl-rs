@@ -17,13 +17,11 @@
 //! - `16-wakers`
 //! - `32-wakers`
 #[cfg(not(feature = "portable-atomic"))]
-use core::sync::atomic::AtomicBool;
-use core::{cell::RefCell, convert::Infallible, marker::PhantomData};
-use critical_section::Mutex;
+use core::sync::atomic::{AtomicBool, AtomicPtr, AtomicUsize, Ordering};
+use core::{convert::Infallible, marker::PhantomData};
 use embassy_sync::waitqueue::AtomicWaker;
 #[cfg(feature = "portable-atomic")]
-use portable_atomic::AtomicBool;
-use raw_buffer::RawBufSlice;
+use portable_atomic::{AtomicBool, AtomicPtr, AtomicUsize, Ordering};
 
 use crate::{FIFO_DEPTH, Tx};
 
@@ -46,8 +44,7 @@ pub const NUM_WAKERS: usize = 16;
 #[cfg(feature = "32-wakers")]
 pub const NUM_WAKERS: usize = 32;
 static UART_TX_WAKERS: [AtomicWaker; NUM_WAKERS] = [const { AtomicWaker::new() }; NUM_WAKERS];
-static TX_CONTEXTS: [Mutex<RefCell<TxContext>>; NUM_WAKERS] =
-    [const { Mutex::new(RefCell::new(TxContext::new())) }; NUM_WAKERS];
+static TX_CONTEXTS: [TxContext; NUM_WAKERS] = [const { TxContext::new() }; NUM_WAKERS];
 // Completion flag. Kept outside of the context structure as an atomic to avoid
 // critical section.
 static TX_DONE: [AtomicBool; NUM_WAKERS] = [const { AtomicBool::new(false) }; NUM_WAKERS];
@@ -120,50 +117,45 @@ pub unsafe fn on_interrupt_tx(token: &TxToken) {
     if !status.intr_enabled() {
         return;
     }
-    let mut context = critical_section::with(|cs| {
-        let context_ref = TX_CONTEXTS[waker_slot].borrow(cs);
-        *context_ref.borrow()
-    });
+    let context = &TX_CONTEXTS[waker_slot];
+    // `Acquire` pairs with the `Release` store in `TxFuture::new`/`poll`/`Drop`: seeing a
+    // non-null pointer here guarantees `transfer_len`/`progress` below are the values published
+    // together with it, not stale ones from a previous transfer.
+    let raw_data_ptr = context.raw_data.load(Ordering::Acquire) as *const u8;
     // No transfer active.
-    if context.slice.is_null() {
+    if raw_data_ptr.is_null() {
         return;
     }
-    let slice_len = context.slice.len().unwrap();
-    if (context.progress >= slice_len && status.tx_fifo_empty()) || slice_len == 0 {
-        // Write back updated context structure.
-        critical_section::with(|cs| {
-            let context_ref = TX_CONTEXTS[waker_slot].borrow(cs);
-            *context_ref.borrow_mut() = context;
-        });
-        // Transfer is done.
-        TX_DONE[waker_slot].store(true, core::sync::atomic::Ordering::Relaxed);
+    let slice_len = context.transfer_len.load(Ordering::Relaxed);
+    let mut progress = context.progress.load(Ordering::Relaxed);
+    // Safety: We documented that the user provided slice must outlive the future, so we convert
+    // the raw pointer back to the slice here.
+    let slice = unsafe { core::slice::from_raw_parts(raw_data_ptr, slice_len) };
+    if (progress >= slice_len && status.tx_fifo_empty()) || slice_len == 0 {
+        // Transfer is done. `Release` publishes the final `progress` value (and any FIFO writes
+        // above) to whichever context observes `TX_DONE` via the `Acquire` swap in `poll`.
+        TX_DONE[waker_slot].store(true, core::sync::atomic::Ordering::Release);
         UART_TX_WAKERS[waker_slot].wake();
         return;
     }
-    // Safety: We documented that the user provided slice must outlive the future, so we convert
-    // the raw pointer back to the slice here.
-    let slice = unsafe { context.slice.get() }.expect("slice is invalid");
-    while context.progress < slice_len {
+    while progress < slice_len {
         if uartlite_tx.regs.read_stat_reg().tx_fifo_full() {
             break;
         }
         // Safety: TX structure is owned by the future which does not write into the the data
         // register, so we can assume we are the only one writing to the data register.
-        uartlite_tx.write_fifo_unchecked(slice[context.progress]);
-        context.progress += 1;
+        uartlite_tx.write_fifo_unchecked(slice[progress]);
+        progress += 1;
     }
-    // Write back updated context structure.
-    critical_section::with(|cs| {
-        let context_ref = TX_CONTEXTS[waker_slot].borrow(cs);
-        *context_ref.borrow_mut() = context;
-    });
+    context.progress.store(progress, Ordering::Relaxed);
 }
 
 /// TX context structure.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 pub struct TxContext {
-    progress: usize,
-    slice: RawBufSlice,
+    progress: AtomicUsize,
+    raw_data: AtomicPtr<u8>,
+    transfer_len: AtomicUsize,
 }
 
 #[allow(clippy::new_without_default)]
@@ -171,8 +163,9 @@ impl TxContext {
     /// Create a new TX context structure.
     pub const fn new() -> Self {
         Self {
-            progress: 0,
-            slice: RawBufSlice::new_nulled(),
+            progress: AtomicUsize::new(0),
+            raw_data: AtomicPtr::new(core::ptr::null_mut()),
+            transfer_len: AtomicUsize::new(0),
         }
     }
 }
@@ -199,18 +192,24 @@ impl<'tx, 'buf> TxFuture<'tx, 'buf> {
         tx.tx.reset_fifo();
 
         let init_fill_count = core::cmp::min(data.len(), FIFO_DEPTH);
+        let context_ref = &TX_CONTEXTS[waker_idx];
+        // Publish the guarded fields before opening the gate (`raw_data`) with `Release`, so a
+        // reader that observes `raw_data` non-null via the `Acquire` load in `on_interrupt_tx`
+        // is guaranteed to see these too, rather than stale values from a previous transfer.
+        context_ref
+            .transfer_len
+            .store(data.len(), Ordering::Relaxed);
+        context_ref
+            .progress
+            .store(init_fill_count, Ordering::Relaxed);
+        context_ref
+            .raw_data
+            .store(data.as_ptr() as *mut u8, Ordering::Release);
         // We fill the FIFO with initial data.
         for data in data.iter().take(init_fill_count) {
             tx.tx.write_fifo_unchecked(*data);
         }
-        critical_section::with(|cs| {
-            let context_ref = TX_CONTEXTS[waker_idx].borrow(cs);
-            let mut context = context_ref.borrow_mut();
-            unsafe {
-                context.slice.set(data);
-            }
-            context.progress = init_fill_count;
-        });
+
         Ok(Self {
             waker_idx,
             tx,
@@ -228,13 +227,14 @@ impl Future for TxFuture<'_, '_> {
         cx: &mut core::task::Context<'_>,
     ) -> core::task::Poll<Self::Output> {
         UART_TX_WAKERS[self.waker_idx].register(cx.waker());
-        if TX_DONE[self.waker_idx].swap(false, core::sync::atomic::Ordering::Relaxed) {
-            let progress = critical_section::with(|cs| {
-                let mut ctx = TX_CONTEXTS[self.waker_idx].borrow(cs).borrow_mut();
-                ctx.slice.set_null();
-                ctx.progress
-            });
+        if TX_DONE[self.waker_idx].swap(false, core::sync::atomic::Ordering::Acquire) {
+            let context = &TX_CONTEXTS[self.waker_idx];
+            context
+                .raw_data
+                .store(core::ptr::null_mut(), Ordering::Release);
+            let progress = context.progress.load(Ordering::Relaxed);
             self.completed = true;
+
             return core::task::Poll::Ready(progress);
         }
         core::task::Poll::Pending
@@ -249,14 +249,13 @@ impl Drop for TxFuture<'_, '_> {
         // since `TX_DONE` itself is already swapped back to `false` by the time a completed
         // future is dropped.
         if !self.completed {
-            critical_section::with(|cs| {
-                let context_ref = TX_CONTEXTS[self.waker_idx].borrow(cs);
-                let mut context_mut = context_ref.borrow_mut();
-                context_mut.slice.set_null();
-                context_mut.progress = 0;
-                // We can not disable interrupts, might be active for RX as well.
-                self.tx.tx.reset_fifo();
-            });
+            let context_ref = &TX_CONTEXTS[self.waker_idx];
+            context_ref.progress.store(0, Ordering::Relaxed);
+            context_ref
+                .raw_data
+                .store(core::ptr::null_mut(), Ordering::Release);
+            // We can not disable interrupts, might be active for RX as well.
+            self.tx.tx.reset_fifo();
         }
     }
 }
