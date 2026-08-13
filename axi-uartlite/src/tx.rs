@@ -2,7 +2,7 @@
 use core::convert::Infallible;
 
 use crate::{
-    RxErrors, handle_status_reg_errors,
+    InvalidWakerIndex, RxErrors, TxAsync, handle_status_reg_errors,
     registers::{self, Control, TxFifo},
 };
 
@@ -104,6 +104,13 @@ impl Tx {
         let errors = self.errors?;
         self.errors = None;
         Some(errors)
+    }
+
+    /// Convert this TX driver into an asynchronous TX driver.
+    ///
+    /// See [TxAsync::new] for more information about the `waker_idx` argument.
+    pub fn into_async(self, waker_idx: usize) -> Result<TxAsync, InvalidWakerIndex> {
+        TxAsync::new(self, waker_idx)
     }
 }
 

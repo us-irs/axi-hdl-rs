@@ -2,9 +2,10 @@
 use core::convert::Infallible;
 
 use crate::{
-    DEFAULT_RX_TRIGGER_LEVEL,
+    DEFAULT_RX_TRIGGER_LEVEL, InvalidWakerIndex, TxAsync,
     registers::{self, FifoControl, InterruptEnable},
 };
+use embedded_hal_async::delay::DelayNs;
 
 /// AXI UART16550 TX driver.
 ///
@@ -102,6 +103,17 @@ impl Tx {
                 .build()
                 .raw_value(),
         );
+    }
+
+    /// Convert this TX driver into an asynchronous TX driver.
+    ///
+    /// See [TxAsync::new] for more information about the `waker_idx` and `delay` arguments.
+    pub fn into_async<D: DelayNs>(
+        self,
+        waker_idx: usize,
+        delay: D,
+    ) -> Result<TxAsync<D>, InvalidWakerIndex> {
+        TxAsync::new(self, waker_idx, delay)
     }
 
     /// Should be called from the interrupt handler when a THR empty interrupt occurs.
