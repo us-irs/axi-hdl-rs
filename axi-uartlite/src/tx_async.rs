@@ -181,6 +181,10 @@ impl TxContext {
 pub struct TxFuture<'tx, 'buf> {
     waker_idx: usize,
     tx: &'tx mut TxAsync,
+    // Set once `poll` observes completion. `TX_DONE` itself is not enough to tell completion
+    // and cancellation apart in `Drop`, because `poll` already swaps it back to `false` as
+    // part of observing it.
+    completed: bool,
     phantom: core::marker::PhantomData<&'buf ()>,
 }
 
@@ -210,6 +214,7 @@ impl<'tx, 'buf> TxFuture<'tx, 'buf> {
         Ok(Self {
             waker_idx,
             tx,
+            completed: false,
             phantom: PhantomData,
         })
     }
@@ -219,7 +224,7 @@ impl Future for TxFuture<'_, '_> {
     type Output = usize;
 
     fn poll(
-        self: core::pin::Pin<&mut Self>,
+        mut self: core::pin::Pin<&mut Self>,
         cx: &mut core::task::Context<'_>,
     ) -> core::task::Poll<Self::Output> {
         UART_TX_WAKERS[self.waker_idx].register(cx.waker());
@@ -229,6 +234,7 @@ impl Future for TxFuture<'_, '_> {
                 ctx.slice.set_null();
                 ctx.progress
             });
+            self.completed = true;
             return core::task::Poll::Ready(progress);
         }
         core::task::Poll::Pending
@@ -237,7 +243,12 @@ impl Future for TxFuture<'_, '_> {
 
 impl Drop for TxFuture<'_, '_> {
     fn drop(&mut self) {
-        if !TX_DONE[self.waker_idx].load(core::sync::atomic::Ordering::Relaxed) {
+        // On cancellation, clear the stale buffer pointer so a spurious or future interrupt
+        // for this waker slot can never dereference it. `self.completed` (set inside `poll`'s
+        // `Ready` arm) is what actually distinguishes cancellation from normal completion here,
+        // since `TX_DONE` itself is already swapped back to `false` by the time a completed
+        // future is dropped.
+        if !self.completed {
             critical_section::with(|cs| {
                 let context_ref = TX_CONTEXTS[self.waker_idx].borrow(cs);
                 let mut context_mut = context_ref.borrow_mut();
