@@ -5,6 +5,7 @@ use crate::regs::{self, Registers, fields::Status};
 
 /// RX error structure which tracks if an error has occurred.
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct RxErrors {
     parity: bool,
     frame: bool,

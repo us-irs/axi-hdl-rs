@@ -54,12 +54,14 @@ static TX_DONE: [AtomicBool; NUM_WAKERS] = [const { AtomicBool::new(false) }; NU
 
 /// Invalid waker index for [NUM_WAKERS].
 #[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[error("invalid waker slot index: {0}")]
 pub struct InvalidWakerIndex(pub usize);
 
 /// Identifies a [TxAsync] driver's UART instance and waker slot, e.g. for use in an interrupt
 /// handler.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct TxToken {
     base_addr: usize,
     waker_idx: usize,

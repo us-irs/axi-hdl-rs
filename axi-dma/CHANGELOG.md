@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 # [unreleased]
 
+- Implement `defmt::Format` for this crate's error types, which was missing despite being
+  documented as a `defmt` feature guarantee.
+
 # [v0.1.0] 2025-08-12
 
 Initial release.

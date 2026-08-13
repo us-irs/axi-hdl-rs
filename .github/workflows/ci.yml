@@ -17,6 +17,10 @@ jobs:
       - run: cargo check -p axi-dma --features portable-atomic
       - run: cargo check -p axi-uart16550 --features portable-atomic
       - run: cargo check -p axi-uartlite --features portable-atomic
+      - run: cargo check -p axi-dma --features defmt
+      - run: cargo check -p axi-ad9361 --features defmt
+      - run: cargo check -p axi-uart16550 --features defmt
+      - run: cargo check -p axi-uartlite --features defmt
 
   clippy:
     name: clippy

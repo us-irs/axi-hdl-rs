@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Adds optional `portable-atomic` feature for portable atomic operations
 - Renamed the `registers` module to `regs`; register field types now live in `regs::fields`.
 - Re-export `Status` at the crate root, since it appears in the public API.
+- Added an optional `defmt` feature implementing `defmt::Format` for this crate's register and
+  error types.
 
 # [v0.2.1] 2026-06-08
 

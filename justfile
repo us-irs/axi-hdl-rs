@@ -6,12 +6,20 @@ check:
     cargo check -p axi-dma --features portable-atomic
     cargo check -p axi-uart16550 --features portable-atomic
     cargo check -p axi-uartlite --features portable-atomic
+    cargo check -p axi-dma --features defmt
+    cargo check -p axi-ad9361 --features defmt
+    cargo check -p axi-uart16550 --features defmt
+    cargo check -p axi-uartlite --features defmt
 
 build:
     cargo build --workspace
     cargo build -p axi-dma --features portable-atomic
     cargo build -p axi-uart16550 --features portable-atomic
     cargo build -p axi-uartlite --features portable-atomic
+    cargo build -p axi-dma --features defmt
+    cargo build -p axi-ad9361 --features defmt
+    cargo build -p axi-uart16550 --features defmt
+    cargo build -p axi-uartlite --features defmt
 
 clippy:
     cargo clippy --workspace -- -D warnings

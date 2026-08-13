@@ -14,6 +14,7 @@ use crate::{
 
 /// RX errors structure.
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct RxErrors {
     parity: bool,
     frame: bool,

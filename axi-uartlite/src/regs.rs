@@ -3,7 +3,7 @@
 /// Register field types.
 pub mod fields {
     /// RX FIFO register.
-    #[bitbybit::bitfield(u32)]
+    #[bitbybit::bitfield(u32, defmt_bitfields(feature = "defmt"))]
     pub struct RxFifo {
         /// Data which can be read.
         #[bits(0..=7, r)]
@@ -11,7 +11,7 @@ pub mod fields {
     }
 
     /// TX FIFO register.
-    #[bitbybit::bitfield(u32)]
+    #[bitbybit::bitfield(u32, defmt_bitfields(feature = "defmt"))]
     pub struct TxFifo {
         /// Data to be transmitted.
         #[bits(0..=7, w)]
@@ -19,7 +19,7 @@ pub mod fields {
     }
 
     /// Status register.
-    #[bitbybit::bitfield(u32)]
+    #[bitbybit::bitfield(u32, defmt_bitfields(feature = "defmt"))]
     pub struct Status {
         /// Parity error bit.
         #[bit(7, r)]
@@ -48,7 +48,7 @@ pub mod fields {
     }
 
     /// Control register.
-    #[bitbybit::bitfield(u32, default = 0x0)]
+    #[bitbybit::bitfield(u32, default = 0x0, defmt_bitfields(feature = "defmt"))]
     pub struct Control {
         /// Enable interrupt bit.
         #[bit(4, w)]
