@@ -15,6 +15,7 @@
 //!
 //! - `portable-atomic` enables the use of the [`portable-atomic`](https://docs.rs/portable-atomic/latest/portable_atomic/)
 //!   crate for atomic operations. This is useful for platforms that do not support the standard library's atomic types.
+//! - `defmt` implements `defmt::Format` for this crate's register and error types.
 //! - `1-waker` which is also a `default` feature
 //! - `2-wakers`
 //! - `4-wakers`
@@ -44,6 +45,7 @@ pub const FIFO_DEPTH: usize = 16;
 
 /// RX error structure.
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct RxErrorsCounted {
     parity: u8,
     frame: u8,

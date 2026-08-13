@@ -26,3 +26,7 @@ can be configured using the following features:
 - `8-wakers`
 - `16-wakers`
 - `32-wakers`
+
+Additionally:
+
+- `defmt` implements `defmt::Format` for this crate's register and error types.
