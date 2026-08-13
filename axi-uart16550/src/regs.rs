@@ -5,7 +5,7 @@ pub mod fields {
     use arbitrary_int::u2;
 
     /// Transmitter Holding Register.
-    #[bitbybit::bitfield(u32)]
+    #[bitbybit::bitfield(u32, defmt_bitfields(feature = "defmt"))]
     pub struct Fifo {
         /// Bytes to transmit or receive.
         #[bits(0..=7, rw)]
@@ -13,7 +13,7 @@ pub mod fields {
     }
 
     /// Interrupt Enable Register.
-    #[bitbybit::bitfield(u32)]
+    #[bitbybit::bitfield(u32, defmt_bitfields(feature = "defmt"))]
     pub struct InterruptEnable {
         /// Enable Modem Status Interrupt
         #[bit(3, rw)]
@@ -32,6 +32,7 @@ pub mod fields {
     /// Interrupt identification ID
     #[bitbybit::bitenum(u3, exhaustive = false)]
     #[derive(Debug, PartialEq, Eq)]
+    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub enum InterruptId2 {
         /// Receiver Line Status.
         ReceiverLineStatus = 0b011,
@@ -46,7 +47,7 @@ pub mod fields {
     }
 
     /// Interrupt Identification Register
-    #[bitbybit::bitfield(u32)]
+    #[bitbybit::bitfield(u32, defmt_bitfields(feature = "defmt"))]
     pub struct InterruptIdentification {
         /// 16550 mode enabled?
         #[bits(6..=7, r)]
@@ -61,6 +62,8 @@ pub mod fields {
 
     /// RX FIFO trigger level.
     #[bitbybit::bitenum(u2, exhaustive = true)]
+    #[derive(Debug, PartialEq, Eq)]
+    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub enum RxFifoTrigger {
         /// One byte.
         OneByte = 0b00,
@@ -85,7 +88,7 @@ pub mod fields {
     }
 
     /// FIFO Control Register
-    #[bitbybit::bitfield(u32, default = 0x0)]
+    #[bitbybit::bitfield(u32, default = 0x0, defmt_bitfields(feature = "defmt"))]
     pub struct FifoControl {
         /// RX FIFO trigger level.
         #[bits(4..=5, rw)]
@@ -107,6 +110,7 @@ pub mod fields {
     /// Word length in bits.
     #[bitbybit::bitenum(u2, exhaustive = true)]
     #[derive(Default, Debug, PartialEq, Eq)]
+    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub enum WordLen {
         /// 5 bits.
         Five = 0b00,
@@ -122,6 +126,7 @@ pub mod fields {
     /// Stop bits.
     #[bitbybit::bitenum(u1, exhaustive = true)]
     #[derive(Default, Debug, PartialEq, Eq)]
+    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub enum StopBits {
         /// One stop bit (default).
         #[default]
@@ -131,7 +136,7 @@ pub mod fields {
     }
 
     /// Line control register.
-    #[bitbybit::bitfield(u32, default = 0x00)]
+    #[bitbybit::bitfield(u32, default = 0x00, defmt_bitfields(feature = "defmt"))]
     pub struct LineControl {
         /// Divisor Latch Access Bit.
         #[bit(7, rw)]
@@ -164,7 +169,7 @@ pub mod fields {
     }
 
     /// Line Status Register
-    #[bitbybit::bitfield(u32)]
+    #[bitbybit::bitfield(u32, defmt_bitfields(feature = "defmt"))]
     #[derive(Debug)]
     pub struct LineStatus {
         /// Error in RX FIFO.

@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Re-export `InterruptEnable`, `InterruptIdentification`, `InterruptId2`, `LineStatus`,
   `RxFifoTrigger`, `WordLen` and `StopBits` at the crate root, since they appear in the public
   API.
+- Added an optional `defmt` feature implementing `defmt::Format` for this crate's register and
+  error types.
 
 # [v0.2.1] 2026-06-08
 

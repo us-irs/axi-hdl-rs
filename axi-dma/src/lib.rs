@@ -114,6 +114,7 @@ const RESET_POLL_ATTEMPTS: u32 = 100_000;
 /// A channel's `reset` bit did not clear within the poll timeout. This usually means `base_addr`
 /// does not point at a real AXI DMA peripheral.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[error("DMA channel reset did not complete within the timeout")]
 pub struct ResetTimeoutError;
 
@@ -130,6 +131,7 @@ fn wait_for_reset(mut is_resetting: impl FnMut() -> bool) -> Result<(), ResetTim
 /// A requested DMA transfer buffer is longer than the 2^26 - 1 byte limit the transfer-length
 /// register can encode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[error(
     "invalid DMA transfer buffer length {len}: must be less than or equal to {} bytes",
     u26::MAX.as_usize()
@@ -141,16 +143,19 @@ pub struct InvalidBufferLengthError {
 
 /// `tx_waker_index` is out of range for the crate's configured [`NUM_TX_WAKERS`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[error("invalid waker slot index: {0}")]
 pub struct InvalidTxWakerIndexError(pub usize);
 
 /// `tx_waker_index` was already claimed by another async writer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[error("waker slot index {0} is already in use by another async writer")]
 pub struct TxWakerIndexInUseError(pub usize);
 
 /// Error returned when claiming a waker slot for an async writer fails.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum TakeAsyncError {
     /// See [`InvalidTxWakerIndexError`].
     #[error(transparent)]
@@ -164,6 +169,7 @@ pub enum TakeAsyncError {
 /// status bit. Returned by `on_interrupt` instead of being silently cleared, so the caller finds
 /// out that something actually went wrong on the bus rather than the transfer just completing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[error("DMA transfer error (decode: {decode}, slave: {slave}, internal: {internal})")]
 pub struct DmaTransferError {
     /// DMA/data stream decode error.
@@ -206,6 +212,7 @@ impl DmaTransferError {
 /// Error returned by [`DmaWriterAsync::write`]: either the buffer was rejected up front, or the
 /// transfer was armed but the hardware reported an error on completion.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum DmaWriteError {
     /// See [`InvalidBufferLengthError`].
     #[error(transparent)]
@@ -742,6 +749,7 @@ impl DmaInterruptRxToken {
 
 /// Error returned by [`DmaReaderInterruptDriven::on_interrupt`].
 #[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum DmaReadError {
     /// See [`DmaTransferError`]. The transfer whose completion interrupt this call is servicing
     /// itself failed on the bus, so no data is available.
@@ -777,11 +785,13 @@ impl Default for DoubleBufferHelper {
 
 /// The two buffers passed to [`DoubleBufferHelper::init`] have different lengths.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[error("buffer length is not equal")]
 pub struct LengthNotEqualError;
 
 /// Error returned by [`DoubleBufferHelper::init`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum DoubleBufferInitError {
     /// See [`LengthNotEqualError`].
     #[error(transparent)]

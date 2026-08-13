@@ -22,6 +22,8 @@ embassy-sync = "0.8"
 raw-buffer = "0.1"
 portable-atomic = { version = "1", optional = true }
 
+defmt = { version = "1", optional = true }
+
 [features]
 default = ["1-waker"]
 1-waker = []

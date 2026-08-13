@@ -10,6 +10,7 @@
 //!
 //! - `portable-atomic` enables the use of the [`portable-atomic`](https://docs.rs/portable-atomic/latest/portable_atomic/)
 //!   crate for atomic operations. This is useful for platforms that do not support the standard library's atomic types.
+//! - `defmt` implements `defmt::Format` for this crate's register and error types.
 //! - `1-waker` which is also a `default` feature
 //! - `2-wakers`
 //! - `4-wakers`
@@ -46,6 +47,7 @@ pub const DEFAULT_RX_TRIGGER_LEVEL: RxFifoTrigger = RxFifoTrigger::EightBytes;
 
 /// Clock configuration structure.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ClockConfig {
     /// Divisor value.
     pub div: u16,
@@ -53,6 +55,7 @@ pub struct ClockConfig {
 
 /// Divisor is zero error.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[error("divisor is zero")]
 pub struct DivisorZeroError;
 
@@ -74,6 +77,7 @@ pub fn calculate_error_rate_from_div(
 /// If this error occurs, the calculated baudrate divisor is too large, either because the
 /// used clock is too large, or the baudrate is too slow for the used clock frequency.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[error("divisor too large")]
 pub enum ClockConfigError {
     /// Divisor too large error.
@@ -152,6 +156,7 @@ impl ClockConfig {
 
 /// Parity configuration.
 #[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Parity {
     /// No parity (default).
     #[default]
@@ -171,6 +176,7 @@ pub struct AxiUart16550 {
 
 /// UART configuration structure.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct UartConfig {
     clk: ClockConfig,
     word_len: WordLen,
