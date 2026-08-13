@@ -1,6 +1,8 @@
 pub use fields::InterfaceMode;
 
+/// Register field types shared by the top-level, ADC and DAC register blocks.
 pub mod fields {
+    /// Core reset/clock-enable register, `AXI_ADC_REG_RSTN`/`AXI_DAC_REG_RSTN`.
     #[bitbybit::bitfield(
         u32,
         default = 0,
@@ -27,38 +29,51 @@ pub mod fields {
         pub const RELEASED: Self = Self::ZERO.with_mmcm_reset_n(true).with_reset_n(true);
     }
 
+    /// Single-Data-Rate vs. Double-Data-Rate digital interface selection.
     #[bitbybit::bitenum(u1, exhaustive = true)]
     #[derive(Debug, PartialEq, Eq)]
     #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub enum InterfaceType {
+        /// Single data rate.
         Sdr = 0,
+        /// Double data rate.
         Ddr = 1,
     }
 
+    /// Symbol width used by the digital interface.
     #[bitbybit::bitenum(u1, exhaustive = true)]
     #[derive(Debug, PartialEq, Eq)]
     #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub enum SymbolModeBits {
+        /// 8-bit symbols.
         _8 = 1,
+        /// 16-bit symbols.
         _16 = 0,
     }
 
+    /// Number of channels transferred per interface beat.
     #[bitbybit::bitenum(u1, exhaustive = true)]
     #[derive(Debug, PartialEq, Eq)]
     #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub enum R1Mode {
+        /// One channel per beat (e.g. 1R1T).
         OneChannel = 1,
+        /// Two channels per beat (e.g. 2R2T).
         TwoChannels = 0,
     }
 
+    /// Digital interface signaling standard.
     #[bitbybit::bitenum(u1, exhaustive = true)]
     #[derive(Debug, PartialEq, Eq)]
     #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub enum InterfaceMode {
+        /// LVDS interface.
         Lvds = 0,
+        /// CMOS interface.
         Cmos = 1,
     }
 
+    /// IP core capability/configuration register, `AXI_ADC_REG_CONFIG`.
     #[bitbybit::bitfield(
         u32,
         default = 0,
@@ -67,29 +82,41 @@ pub mod fields {
         forbid_overlaps
     )]
     pub struct Config {
+        /// Raw (uncorrected) ADC data can be read back.
         #[bit(11, rw)]
         rd_raw_data: bool,
+        /// External synchronization support is present.
         #[bit(10, rw)]
         external_sync: bool,
+        /// Only scale correction is supported, not full IQ correction.
         #[bit(9, rw)]
         scale_correction_only: bool,
+        /// A PPS receiver is present.
         #[bit(8, rw)]
         pps_receiver: bool,
+        /// Digital interface standard configured for this core.
         #[bit(7, rw)]
         cmos_or_lvds: InterfaceMode,
+        /// DDS support is disabled.
         #[bit(6, rw)]
         dds_disable: bool,
+        /// Delay control support is disabled.
         #[bit(5, rw)]
         delay_control_disable: bool,
+        /// Core is built for 1R1T/1T1R mode only.
         #[bit(4, rw)]
         mode_1r1t: bool,
 
+        /// User-port support is disabled.
         #[bit(3, rw)]
         userports_disabled: bool,
+        /// Data format conversion support is disabled.
         #[bit(2, rw)]
         dataformat_disabled: bool,
+        /// DC filtering support is disabled.
         #[bit(1, r)]
         dc_filter_disabled: bool,
+        /// IQ correction support is disabled.
         #[bit(0, r)]
         iq_correction_disabled: bool,
     }
@@ -101,10 +128,15 @@ pub mod fields {
     #[derive(Debug, PartialEq, Eq)]
     #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub enum FpgaTechnology {
+        /// Technology not recognized by the encoding.
         Unknown = 0,
+        /// Xilinx 7 series.
         Series7 = 1,
+        /// Xilinx/AMD UltraScale.
         UltraScale = 2,
+        /// Xilinx/AMD UltraScale+.
         UltraScalePlus = 3,
+        /// AMD Versal.
         Versal = 4,
     }
 
@@ -115,16 +147,25 @@ pub mod fields {
     #[derive(Debug, PartialEq, Eq)]
     #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub enum FpgaFamily {
+        /// Family not recognized by the encoding.
         Unknown = 0,
+        /// Xilinx Artix.
         Artix = 1,
+        /// Xilinx Kintex.
         Kintex = 2,
+        /// Xilinx Virtex.
         Virtex = 3,
+        /// Xilinx/AMD Zynq.
         Zynq = 4,
+        /// AMD Versal Prime.
         VersalPrime = 5,
+        /// AMD Versal AI Core.
         VersalAiCore = 6,
+        /// AMD Versal Premium.
         VersalPremium = 7,
     }
 
+    /// FPGA part information encoded by Vivado at build time, read from `up_config_info`.
     #[bitbybit::bitfield(
         u32,
         default = 0,
@@ -133,41 +174,54 @@ pub mod fields {
         forbid_overlaps
     )]
     pub struct FpgaInfo {
+        /// FPGA process technology.
         #[bits(24..=31, rw)]
         technology: Option<FpgaTechnology>,
+        /// FPGA family.
         #[bits(16..=23, rw)]
         family: Option<FpgaFamily>,
+        /// Speed grade, as encoded by Vivado.
         #[bits(8..=15, rw)]
         speed: u8,
+        /// Device package, as encoded by Vivado.
         #[bits(0..=7, rw)]
         dev_package: u8,
     }
 }
 
+/// ADC register block, `AXI_ADC_REG_*`.
 pub mod adc {
     pub use crate::regs::fields::Reset;
 
+    /// ADC-specific register field types.
     pub mod fields {
         use arbitrary_int::{u4, u5};
 
         pub use crate::regs::fields::{InterfaceType, R1Mode, SymbolModeBits};
 
+        /// DDR data capture edge selection.
         #[bitbybit::bitenum(u1, exhaustive = true)]
         #[derive(Debug, PartialEq, Eq)]
         #[cfg_attr(feature = "defmt", derive(defmt::Format))]
         pub enum DdrEdgeSelect {
+            /// Capture on the rising edge.
             Rising = 0,
+            /// Capture on the falling edge.
             Falling = 1,
         }
 
+        /// Digital interface pin/clock multiplexing scheme.
         #[bitbybit::bitenum(u1, exhaustive = true)]
         #[derive(Debug, PartialEq, Eq)]
         #[cfg_attr(feature = "defmt", derive(defmt::Format))]
         pub enum PinMode {
+            /// Clock-multiplexed interface.
             ClockMultiplexed = 1,
+            /// Pin-multiplexed interface.
             PinMultiplexed = 0,
         }
 
+        /// ADC digital interface control register, `AXI_ADC_REG_CNTRL_1`.
         #[bitbybit::bitfield(
             u32,
             default = 0,
@@ -176,21 +230,28 @@ pub mod adc {
             forbid_overlaps
         )]
         pub struct Control1 {
+            /// Interface type (SDR/DDR).
             #[bit(16, rw)]
             interface_type: InterfaceType,
             /// Select symbol data format mode.
             #[bit(15, rw)]
             symb_op: bool,
+            /// Symbol width used by the digital interface.
             #[bit(14, rw)]
             symb_8_16b: SymbolModeBits,
+            /// Number of active interface lanes.
             #[bits(8..=12, rw)]
             num_of_lanes: u5,
+            /// Request a channel data path synchronization pulse.
             #[bit(3, rw)]
             sync: bool,
+            /// Number of channels transferred per interface beat.
             #[bit(2, rw)]
             r1_mode: R1Mode,
+            /// DDR data capture edge.
             #[bit(1, rw)]
             ddr_edgesel: DdrEdgeSelect,
+            /// Pin/clock multiplexing scheme.
             #[bit(0, rw)]
             pin_mode: PinMode,
         }
@@ -207,27 +268,36 @@ pub mod adc {
             forbid_overlaps
         )]
         pub struct ChannelDataPathControl {
+            /// Loop the channel's data path back on itself.
             #[bit(11, rw)]
             loopback_enable: bool,
             /// Legacy single-bit PN select, distinct from [`ChannelPnSelect::pn_sel`].
             #[bit(10, rw)]
             pn_sel_legacy: bool,
+            /// Enable IQ correction on this channel.
             #[bit(9, rw)]
             iqcor_enable: bool,
+            /// Enable DC filtering on this channel.
             #[bit(8, rw)]
             dcfilt_enable: bool,
+            /// Sign-extend the formatted sample.
             #[bit(6, rw)]
             format_signext: bool,
+            /// Sample format type (offset binary vs. two's complement).
             #[bit(5, rw)]
             format_type: bool,
+            /// Enable sample format conversion.
             #[bit(4, rw)]
             format_enable: bool,
+            /// PN sequence type used by the legacy PN monitor.
             #[bit(1, rw)]
             pn_type: bool,
+            /// Enable the channel's data path.
             #[bit(0, rw)]
             enable: bool,
         }
 
+        /// Per-channel status register, `AXI_ADC_REG_CHAN_STATUS`.
         #[bitbybit::bitfield(
             u32,
             default = 0,
@@ -236,14 +306,19 @@ pub mod adc {
             forbid_overlaps
         )]
         pub struct ChannelStatus {
+            /// CRC error detected on the channel's samples.
             #[bit(12, rw)]
             crc_err: bool,
+            /// Sample status header byte.
             #[bits(4..=11, rw)]
             status_header: u8,
+            /// PN sequence mismatch detected.
             #[bit(2, rw)]
             pn_error: bool,
+            /// PN sequence checker has lost synchronization.
             #[bit(1, rw)]
             pn_out_of_sync: bool,
+            /// Sample value exceeded the representable range.
             #[bit(0, rw)]
             over_range: bool,
         }
@@ -256,14 +331,23 @@ pub mod adc {
         #[derive(Debug, PartialEq, Eq)]
         #[cfg_attr(feature = "defmt", derive(defmt::Format))]
         pub enum PnSel {
+            /// PN9 sequence (the only variant actually decoded, along with [`Self::PnCustom`]).
             Pn9 = 0x0,
+            /// Unimplemented on AD9361; behaves like [`Self::Pn9`].
             _Pn23A = 0x1,
+            /// Unimplemented on AD9361; behaves like [`Self::Pn9`].
             _Pn7 = 0x4,
+            /// Unimplemented on AD9361; behaves like [`Self::Pn9`].
             _Pn15 = 0x5,
+            /// Unimplemented on AD9361; behaves like [`Self::Pn9`].
             _Pn23 = 0x6,
+            /// Unimplemented on AD9361; behaves like [`Self::Pn9`].
             _Pn31 = 0x7,
+            /// Custom PN sequence (decoded distinctly from [`Self::Pn9`]).
             PnCustom = 0x9,
+            /// Unimplemented on AD9361; behaves like [`Self::Pn9`].
             _PnRampNibble = 0xA,
+            /// Unimplemented on AD9361; behaves like [`Self::Pn9`].
             _PnRamp16 = 0xB,
         }
 
@@ -279,18 +363,24 @@ pub mod adc {
             forbid_overlaps
         )]
         pub struct Status {
+            /// Global control status, not documented in the no-OS header.
             #[bit(4, r)]
             ctrl_status: bool,
+            /// PN error asserted on any muxed channel.
             #[bit(3, r)]
             mux_pn_error: bool,
+            /// PN synchronization lost on any muxed channel.
             #[bit(2, r)]
             mux_pn_out_of_sync: bool,
+            /// Over-range condition on any muxed channel.
             #[bit(1, r)]
             mux_over_range: bool,
+            /// Interface has achieved lock.
             #[bit(0, r)]
             locked: bool,
         }
 
+        /// Per-channel PN monitor selection register.
         #[bitbybit::bitfield(
             u32,
             default = 0,
@@ -299,13 +389,16 @@ pub mod adc {
             forbid_overlaps
         )]
         pub struct ChannelPnSelect {
+            /// Selected PN sequence.
             #[bits(16..=19, rw)]
             pn_sel: Option<PnSel>,
+            /// Data source selection for the PN monitor.
             #[bits(0..=3, rw)]
             data_sel: u4,
         }
     }
 
+    /// Per-channel ADC register block.
     #[derive(derive_mmio::Mmio)]
     #[repr(C)]
     pub struct Channel {
@@ -325,6 +418,7 @@ pub mod adc {
 
     static_assertions::const_assert_eq!(core::mem::size_of::<Channel>(), 0x40);
 
+    /// ADC register block.
     #[derive(derive_mmio::Mmio)]
     #[repr(C)]
     pub struct Registers {
@@ -376,31 +470,40 @@ pub mod adc {
     );
 }
 
+/// DAC register block, `AXI_DAC_REG_*`.
 pub mod dac {
     use crate::regs::dac::regs::{Control1, Control2, RateControl};
     pub use crate::regs::fields::Reset;
 
+    /// DAC-specific register field types.
     pub mod regs {
         pub use arbitrary_int::u5;
 
         pub use crate::regs::fields::{InterfaceType, R1Mode, SymbolModeBits};
 
+        /// Frame/parity bit polarity.
         #[bitbybit::bitenum(u1, exhaustive = true)]
         #[derive(Debug, PartialEq, Eq)]
         #[cfg_attr(feature = "defmt", derive(defmt::Format))]
         pub enum ParityType {
+            /// Even parity.
             Even = 0,
+            /// Odd parity.
             Odd = 1,
         }
 
+        /// Frame/parity bit meaning.
         #[bitbybit::bitenum(u1, exhaustive = true)]
         #[derive(Debug, PartialEq, Eq)]
         #[cfg_attr(feature = "defmt", derive(defmt::Format))]
         pub enum ParityMode {
+            /// Bit carries frame information.
             Frame = 0,
+            /// Bit carries parity information.
             Parity = 1,
         }
 
+        /// DAC channel synchronization control register, `AXI_DAC_REG_CNTRL_1`.
         #[bitbybit::bitfield(
             u32,
             default = 0,
@@ -409,16 +512,21 @@ pub mod dac {
             forbid_overlaps
         )]
         pub struct Control1 {
+            /// Manually request a synchronization pulse.
             #[bit(3, rw)]
             manual_sync_request: bool,
+            /// Disarm external synchronization.
             #[bit(2, rw)]
             disarm_ext_sync: bool,
+            /// Arm external synchronization.
             #[bit(1, rw)]
             arm_ext_sync: bool,
+            /// Request a channel data path synchronization pulse.
             #[bit(0, rw)]
             sync: bool,
         }
 
+        /// DAC digital interface control register, `AXI_DAC_REG_CNTRL_2`.
         #[bitbybit::bitfield(
             u32,
             default = 0,
@@ -427,25 +535,33 @@ pub mod dac {
             forbid_overlaps
         )]
         pub struct Control2 {
+            /// Interface type (SDR/DDR).
             #[bit(16, rw)]
             interface_type: InterfaceType,
             /// Select symbol data format mode.
             #[bit(15, rw)]
             symb_op: bool,
+            /// Symbol width used by the digital interface.
             #[bit(14, rw)]
             symb_8_16b: SymbolModeBits,
+            /// Number of active interface lanes.
             #[bits(8..=12, rw)]
             num_of_lanes: u5,
+            /// Frame/parity bit polarity.
             #[bit(7, rw)]
             parity_type: ParityType,
+            /// Frame/parity bit meaning.
             #[bit(6, rw)]
             parity_mode: ParityType,
+            /// Number of channels transferred per interface beat.
             #[bit(5, rw)]
             r1_mode: R1Mode,
+            /// Sample data format (offset binary vs. two's complement).
             #[bit(4, rw)]
             data_format: bool,
         }
 
+        /// DAC sample rate divider register, `AXI_DAC_REG_RATECNTRL`.
         #[bitbybit::bitfield(
             u32,
             default = 0,
@@ -454,6 +570,7 @@ pub mod dac {
             forbid_overlaps
         )]
         pub struct RateControl {
+            /// Rate divider value, see [`crate::dac::Dac::set_rate_div`].
             #[bits(0..=7, rw)]
             rate: u8,
         }
@@ -467,17 +584,29 @@ pub mod dac {
         #[derive(Debug, PartialEq, Eq)]
         #[cfg_attr(feature = "defmt", derive(defmt::Format))]
         pub enum DataSource {
+            /// Internally generated tone (DDS).
             InternalTone = 0x00,
+            /// [`PatternSed`] test pattern.
             Pattern = 0x01,
+            /// Data supplied by software/user logic.
             InputData = 0x02,
+            /// Constant zero output.
             Zero = 0x03,
+            /// Not matched by an explicit arm; falls through to [`Self::InternalTone`].
             _InvertedPn7 = 0x04,
+            /// Not matched by an explicit arm; falls through to [`Self::InternalTone`].
             _InvertedPn15 = 0x05,
+            /// Not matched by an explicit arm; falls through to [`Self::InternalTone`].
             _Pn7 = 0x06,
+            /// Not matched by an explicit arm; falls through to [`Self::InternalTone`].
             _Pn15 = 0x07,
+            /// Loop the corresponding ADC channel's data back out on this DAC channel.
             LoopbackDataAdc = 0x08,
+            /// PN sequence output.
             PnX = 0x09,
+            /// Not matched by an explicit arm; falls through to [`Self::InternalTone`].
             _NibbleRamp = 0x0A,
+            /// Not matched by an explicit arm; falls through to [`Self::InternalTone`].
             _BitRam16Bit = 0x0B,
         }
 
@@ -494,14 +623,18 @@ pub mod dac {
             forbid_overlaps
         )]
         pub struct ChannelLegacyControl {
+            /// Enable IQ correction on this channel.
             #[bit(2, rw)]
             iqcor_enable: bool,
+            /// Loop the channel's data path back on itself.
             #[bit(1, rw)]
             loopback_enable: bool,
+            /// Enable PN sequence output on this channel.
             #[bit(0, rw)]
             pn_enable: bool,
         }
 
+        /// Per-channel data source mux register, `AXI_DAC_REG_CHAN_CNTRL_7`.
         #[bitbybit::bitfield(
             u32,
             default = 0,
@@ -510,6 +643,7 @@ pub mod dac {
             forbid_overlaps
         )]
         pub struct ChannelDataSource {
+            /// Selected data source.
             #[bits(0..=3, rw)]
             data_source: Option<DataSource>,
         }
@@ -526,13 +660,16 @@ pub mod dac {
             forbid_overlaps
         )]
         pub struct PatternSed {
+            /// Second alternating pattern value.
             #[bits(16..=31, rw)]
             pattern_2: i16,
+            /// First alternating pattern value.
             #[bits(0..=15, rw)]
             pattern_1: i16,
         }
     }
 
+    /// Per-channel DAC register block.
     #[derive(derive_mmio::Mmio)]
     #[repr(C)]
     pub struct Channel {
@@ -554,6 +691,7 @@ pub mod dac {
 
     static_assertions::const_assert_eq!(core::mem::size_of::<Channel>(), 0x40);
 
+    /// DAC register block.
     #[derive(derive_mmio::Mmio)]
     #[repr(C)]
     pub struct Registers {
@@ -597,6 +735,8 @@ pub mod dac {
     static_assertions::const_assert_eq!(core::mem::size_of::<Registers>(), 0x800);
 }
 
+/// Top-level AXI AD9361 IP core register block, spanning the shared registers plus the ADC,
+/// DAC and TDD sub-blocks.
 #[derive(derive_mmio::Mmio)]
 #[repr(C)]
 pub struct Registers {

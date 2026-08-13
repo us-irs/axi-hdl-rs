@@ -2,6 +2,7 @@ use arbitrary_int::{traits::Integer as _, u4};
 
 use crate::regs::{self, fields::R1Mode};
 
+/// Driver for the ADC (receive) datapath of the AXI AD9361 IP core.
 pub struct Adc {
     mmio: regs::adc::MmioRegisters<'static>,
 }
@@ -38,12 +39,22 @@ impl Adc {
         adc
     }
 
+    /// Create a new ADC driver without touching any registers.
+    ///
+    /// This only constructs the register access handle at the given base address. The caller
+    /// is responsible for bringing the ADC out of reset and enabling its channels, e.g. by
+    /// calling [`Self::enable`] and [`Self::enable_channel`] as needed.
+    ///
+    /// # Safety
+    ///
+    /// See the safety section of [`Self::new`].
     pub const fn new_no_init(base_addr_ip_core: usize) -> Self {
         Adc {
             mmio: regs::Registers::new_adc_block(base_addr_ip_core),
         }
     }
 
+    /// Asserts and then releases the ADC core reset, enabling the clock.
     pub fn enable(&mut self) {
         self.mmio.write_reset(crate::regs::fields::Reset::ZERO);
         self.mmio.write_reset(crate::regs::fields::Reset::RELEASED);
@@ -61,6 +72,7 @@ impl Adc {
         self.mmio.write_reset(crate::regs::fields::Reset::RELEASED);
     }
 
+    /// Get a handle to the given channel's registers.
     pub fn channel_mut(&mut self, channel: u4) -> regs::adc::MmioChannel<'_> {
         self.mmio
             .adc_channels(channel.as_usize())
@@ -98,16 +110,19 @@ impl Adc {
         });
     }
 
+    /// Read the ADC's global PN/interface status register.
     #[inline]
     pub fn read_status(&mut self) -> regs::adc::fields::Status {
         self.mmio.read_adc_status()
     }
 
+    /// Get a handle to the raw ADC registers.
     #[inline]
     pub fn regs(&mut self) -> &regs::adc::MmioRegisters<'static> {
         &self.mmio
     }
 
+    /// Get a mutable handle to the raw ADC registers.
     #[inline]
     pub fn regs_mut(&mut self) -> &mut regs::adc::MmioRegisters<'static> {
         &mut self.mmio

@@ -75,7 +75,7 @@ dependencies = [
 
 [[package]]
 name = "axi-uartlite"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "arbitrary-int",
  "bitbybit",
