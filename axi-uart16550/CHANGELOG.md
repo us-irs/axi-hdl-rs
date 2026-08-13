@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   tracked locally.
 - Fixed a use-after-cancellation issue where a dropped `TxFuture` left a stale buffer pointer
   in its waker slot, which a spurious or later interrupt could dereference.
+- Renamed the `registers` module to `regs`; register field types now live in `regs::fields`.
+- Re-export `InterruptEnable`, `InterruptIdentification`, `InterruptId2`, `LineStatus`,
+  `RxFifoTrigger`, `WordLen` and `StopBits` at the crate root, since they appear in the public
+  API.
 
 # [v0.2.1] 2026-06-08
 

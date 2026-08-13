@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Removed `unsafe` for Async TX constructor again, the special case does not warrant an `unsafe`
   attribute.
 - Adds optional `portable-atomic` feature for portable atomic operations
+- Renamed the `registers` module to `regs`; register field types now live in `regs::fields`.
+- Re-export `Status` at the crate root, since it appears in the public API.
 
 # [v0.2.1] 2026-06-08
 

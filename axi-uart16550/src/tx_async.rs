@@ -29,7 +29,7 @@ use raw_buffer::RawBufSlice;
 
 use crate::{
     FIFO_DEPTH, Tx,
-    registers::{self, InterruptEnable},
+    regs::{self, fields::InterruptEnable},
 };
 
 /// 1 waker (default).
@@ -185,7 +185,7 @@ impl TxContext {
 /// TX future structure.
 pub struct TxFuture<'tx, 'buf> {
     waker_idx: usize,
-    reg_block: registers::MmioRegisters<'static>,
+    reg_block: regs::MmioRegisters<'static>,
     phantom: core::marker::PhantomData<(&'tx (), &'buf ())>,
 }
 

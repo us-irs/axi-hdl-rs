@@ -3,7 +3,10 @@ use core::convert::Infallible;
 
 use crate::{
     InvalidWakerIndex, RxErrors, TxAsync, handle_status_reg_errors,
-    registers::{self, Control, TxFifo},
+    regs::{
+        self,
+        fields::{Control, TxFifo},
+    },
 };
 
 /// AXI UARTLITE TX driver.
@@ -11,7 +14,7 @@ use crate::{
 /// Can be created by [super::AxiUartlite::split]ting a regular AXI UARTLITE structure or
 /// by [Self::steal]ing it unsafely.
 pub struct Tx {
-    pub(crate) regs: registers::MmioRegisters<'static>,
+    pub(crate) regs: regs::MmioRegisters<'static>,
     pub(crate) errors: Option<RxErrors>,
 }
 
@@ -30,7 +33,7 @@ impl Tx {
     ///
     /// The same safey rules specified in [super::AxiUartlite] apply.
     pub unsafe fn steal(base_addr: usize) -> Self {
-        let regs = unsafe { registers::Registers::new_mmio_at(base_addr) };
+        let regs = unsafe { regs::Registers::new_mmio_at(base_addr) };
         Self { regs, errors: None }
     }
 

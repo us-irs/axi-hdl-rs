@@ -22,8 +22,12 @@
 
 use core::convert::Infallible;
 
-use registers::{FifoControl, InterruptEnable, LineControl, RxFifoTrigger, StopBits, WordLen};
-pub mod registers;
+use regs::fields::{FifoControl, LineControl};
+pub use regs::fields::{
+    InterruptEnable, InterruptId2, InterruptIdentification, LineStatus, RxFifoTrigger, StopBits,
+    WordLen,
+};
+pub mod regs;
 
 pub mod tx;
 pub use tx::*;
@@ -215,7 +219,7 @@ impl AxiUart16550 {
     ///   with the same `base_addr` can lead to unintended behavior if not externally synchronized.
     /// - The driver performs **volatile** reads and writes to the provided address.
     pub unsafe fn new(base_addr: u32, config: UartConfig) -> Self {
-        let mut regs = unsafe { registers::Registers::new_mmio_at(base_addr as usize) };
+        let mut regs = unsafe { regs::Registers::new_mmio_at(base_addr as usize) };
         // This unlocks the divisor config registers.
         regs.write_lcr(LineControl::new_for_divisor_access());
         regs.write_fifo_or_dll(config.clk.div_lsb() as u32);
@@ -255,7 +259,7 @@ impl AxiUart16550 {
 
     /// Raw register access.
     #[inline(always)]
-    pub const fn regs(&mut self) -> &mut registers::MmioRegisters<'static> {
+    pub const fn regs(&mut self) -> &mut regs::MmioRegisters<'static> {
         &mut self.rx.regs
     }
 
