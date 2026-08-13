@@ -1,6 +1,6 @@
 [![Crates.io](https://img.shields.io/crates/v/axi-uartlite)](https://crates.io/crates/axi-uartlite)
 [![docs.rs](https://img.shields.io/docsrs/axi-uartlite)](https://docs.rs/axi-uartlite)
-[![ci](https://github.com/us-irs/axi-uartlite/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/us-irs/axi-uartlite/actions/workflows/ci.yml)
+[![ci](https://github.com/us-irs/axi-hdl-rs/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/us-irs/axi-hdl-rs/actions/workflows/ci.yml)
 
 AXI UARTLITE driver
 ========

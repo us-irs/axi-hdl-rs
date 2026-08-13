@@ -1,6 +1,6 @@
 [![Crates.io](https://img.shields.io/crates/v/axi-uart16550)](https://crates.io/crates/axi-uart16550)
 [![docs.rs](https://img.shields.io/docsrs/axi-uart16550)](https://docs.rs/axi-uart16550)
-[![ci](https://github.com/us-irs/axi-uart16550/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/us-irs/axi-uart16550/actions/workflows/ci.yml)
+[![ci](https://github.com/us-irs/axi-hdl-rs/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/us-irs/axi-hdl-rs/actions/workflows/ci.yml)
 
 AXI UART16550 driver
 ========

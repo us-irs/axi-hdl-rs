@@ -1,3 +1,7 @@
+[![Crates.io](https://img.shields.io/crates/v/axi-dma)](https://crates.io/crates/axi-dma)
+[![docs.rs](https://img.shields.io/docsrs/axi-dma)](https://docs.rs/axi-dma)
+[![ci](https://github.com/us-irs/axi-hdl-rs/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/us-irs/axi-hdl-rs/actions/workflows/ci.yml)
+
 AXI DMA driver
 ========
 
