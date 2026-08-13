@@ -493,6 +493,9 @@ impl DmaWriterAsync {
     /// The token identifying this writer's MM2S channel, fixed for the writer's whole lifetime.
     /// Retrieve it once, right after construction, to hand to your interrupt handler — no need
     /// to wait for a `write` call to return one.
+    ///
+    /// Since the token needs to reach a separate interrupt context, a crate like `once_cell` can
+    /// be used to share it safely.
     #[inline]
     pub fn token(&self) -> DmaTxToken {
         self.token
@@ -905,6 +908,9 @@ impl DmaReaderInterruptDriven {
     /// Retrieve it once, right after construction, to hand to your interrupt handler — no need
     /// to wait for a `start` call to return one, so it can be in place *before* the first
     /// transfer is armed and the completion interrupt can possibly fire.
+    ///
+    /// Since the token needs to reach a separate interrupt context, a crate like `once_cell` can
+    /// be used to share it safely.
     #[inline]
     pub fn token(&self) -> DmaInterruptRxToken {
         self.token

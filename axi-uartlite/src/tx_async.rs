@@ -4,8 +4,9 @@
 //!
 //! It provides a static number of async wakers to allow a configurable amount of pollable
 //! [TxFuture]s. Each UARTLite [Tx] instance which performs asynchronous TX operations needs
-//! to be to explicitely assigned a waker when creating an awaitable [TxAsync] structure
-//! as well as when calling the [on_interrupt_tx] handler.
+//! to be to explicitely assigned a waker when creating an awaitable [TxAsync] structure.
+//! Retrieve the resulting [TxToken] via [TxAsync::token] right after construction and pass it
+//! to [on_interrupt_tx] from your interrupt handler.
 //!
 //! The maximum number of available wakers is configured via the waker feature flags:
 //!
@@ -56,17 +57,62 @@ static TX_DONE: [AtomicBool; NUM_WAKERS] = [const { AtomicBool::new(false) }; NU
 #[error("invalid waker slot index: {0}")]
 pub struct InvalidWakerIndex(pub usize);
 
+/// Identifies a [TxAsync] driver's UART instance and waker slot, e.g. for use in an interrupt
+/// handler.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TxToken {
+    base_addr: usize,
+    waker_idx: usize,
+}
+
+impl TxToken {
+    /// The UART register block's base address.
+    #[inline]
+    pub fn base_addr(&self) -> usize {
+        self.base_addr
+    }
+
+    /// The waker slot this token's TX driver was constructed with.
+    #[inline]
+    pub fn waker_idx(&self) -> usize {
+        self.waker_idx
+    }
+
+    /// Constructs a token from a raw base address and waker index, e.g. for use in an interrupt
+    /// handler that only has these two values available from static configuration, rather than
+    /// a token retrieved via [TxAsync::token].
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure `base_addr` is the real base address of the UART register block
+    /// whose TX interrupt is being serviced, and that `waker_idx` matches the slot originally
+    /// passed to the corresponding [TxAsync::new] call.
+    #[inline]
+    pub const unsafe fn steal(base_addr: usize, waker_idx: usize) -> Self {
+        Self {
+            base_addr,
+            waker_idx,
+        }
+    }
+}
+
 /// This is a generic interrupt handler to handle asynchronous UART TX operations for a given
 /// UART peripheral.
 ///
 /// The user has to call this once in the interrupt handler responsible if the interrupt was
-/// triggered by the UARTLite using [TxAsync]. The relevant [Tx] handle of the UARTLite and the
-/// waker slot used for it must be passed as well. [Tx::steal] can be used to create the required
-/// handle.
-pub fn on_interrupt_tx(uartlite_tx: &mut Tx, waker_slot: usize) {
-    if waker_slot >= NUM_WAKERS {
+/// triggered by the UARTLite using [TxAsync]. `token` should be retrieved once via
+/// [TxAsync::token] right after constructing the driver.
+///
+/// # Safety
+///
+/// `token` must have been returned by [TxAsync::token] (or constructed via [TxToken::steal] to
+/// match) for a TX driver actually performing the transfer being serviced.
+pub unsafe fn on_interrupt_tx(token: &TxToken) {
+    if token.waker_idx >= NUM_WAKERS {
         return;
     }
+    let waker_slot = token.waker_idx;
+    let mut uartlite_tx = unsafe { Tx::steal(token.base_addr) };
     let status = uartlite_tx.regs.read_stat_reg();
     // Interrupt are not even enabled.
     if !status.intr_enabled() {
@@ -203,9 +249,13 @@ impl Drop for TxFuture<'_, '_> {
 }
 
 /// Asynchronous TX driver.
+///
+/// Relies on [on_interrupt_tx] being called with this driver's [TxToken] (see [Self::token])
+/// from the UART interrupt handler: without it, futures returned by [Self::write] never make
+/// progress past the initial FIFO fill and never complete.
 pub struct TxAsync {
     pub(crate) tx: Tx,
-    waker_idx: usize,
+    token: TxToken,
 }
 
 impl TxAsync {
@@ -220,7 +270,23 @@ impl TxAsync {
         if waker_idx >= NUM_WAKERS {
             return Err(InvalidWakerIndex(waker_idx));
         }
-        Ok(Self { tx, waker_idx })
+        let token = TxToken {
+            // Safety: only converted to a primitive address.
+            base_addr: unsafe { tx.regs.ptr() } as usize,
+            waker_idx,
+        };
+        Ok(Self { tx, token })
+    }
+
+    /// The token identifying this driver's UART instance and waker slot, fixed for its whole
+    /// lifetime. Retrieve it once, right after construction, to hand to [on_interrupt_tx] in
+    /// your interrupt handler.
+    ///
+    /// Since the token needs to reach a separate interrupt context, a crate like `once_cell` can
+    /// be used to share it safely.
+    #[inline]
+    pub fn token(&self) -> TxToken {
+        self.token
     }
 
     /// Write a buffer asynchronously.
@@ -228,7 +294,7 @@ impl TxAsync {
     /// This implementation is not side effect free, and a started future might have already
     /// written part of the passed buffer.
     pub fn write<'buf>(&mut self, buf: &'buf [u8]) -> TxFuture<'_, 'buf> {
-        TxFuture::new(self, self.waker_idx, buf).expect("waker index unexpectedly invalid")
+        TxFuture::new(self, self.token.waker_idx, buf).expect("waker index unexpectedly invalid")
     }
 
     /// Release the owned TX structure.
