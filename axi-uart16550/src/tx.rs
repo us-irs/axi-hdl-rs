@@ -3,7 +3,10 @@ use core::convert::Infallible;
 
 use crate::{
     DEFAULT_RX_TRIGGER_LEVEL, InvalidWakerIndex, TxAsync,
-    registers::{self, FifoControl, InterruptEnable},
+    regs::{
+        self,
+        fields::{FifoControl, InterruptEnable},
+    },
 };
 use embedded_hal_async::delay::DelayNs;
 
@@ -13,7 +16,7 @@ use embedded_hal_async::delay::DelayNs;
 /// by [Self::steal]ing it unsafely.
 pub struct Tx {
     /// Internal MMIO register structure.
-    pub(crate) regs: registers::MmioRegisters<'static>,
+    pub(crate) regs: regs::MmioRegisters<'static>,
 }
 
 impl Tx {
@@ -32,11 +35,11 @@ impl Tx {
     /// The same safey rules specified in [super::AxiUart16550::new] apply.
     pub const unsafe fn steal(base_addr: usize) -> Self {
         Self {
-            regs: unsafe { registers::Registers::new_mmio_at(base_addr) },
+            regs: unsafe { regs::Registers::new_mmio_at(base_addr) },
         }
     }
 
-    pub(crate) fn new(regs: registers::MmioRegisters<'static>) -> Self {
+    pub(crate) fn new(regs: regs::MmioRegisters<'static>) -> Self {
         Self { regs }
     }
 

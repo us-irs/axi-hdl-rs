@@ -26,8 +26,9 @@
 #![deny(missing_docs)]
 
 use core::convert::Infallible;
-use registers::Control;
-pub mod registers;
+use regs::fields::Control;
+pub use regs::fields::Status;
+pub mod regs;
 
 pub mod tx;
 pub use tx::*;
@@ -100,7 +101,7 @@ impl AxiUartlite {
     ///   with the same `base_addr` can lead to unintended behavior if not externally synchronized.
     /// - The driver performs **volatile** reads and writes to the provided address.
     pub const unsafe fn new(base_addr: u32) -> Self {
-        let regs = unsafe { registers::Registers::new_mmio_at(base_addr as usize) };
+        let regs = unsafe { regs::Registers::new_mmio_at(base_addr as usize) };
         Self {
             rx: Rx {
                 regs: unsafe { regs.clone() },
@@ -113,7 +114,7 @@ impl AxiUartlite {
 
     /// Direct register access.
     #[inline(always)]
-    pub const fn regs(&mut self) -> &mut registers::MmioRegisters<'static> {
+    pub const fn regs(&mut self) -> &mut regs::MmioRegisters<'static> {
         &mut self.tx.regs
     }
 

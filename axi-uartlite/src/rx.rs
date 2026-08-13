@@ -1,7 +1,7 @@
 //! # Receiver (RX) support module
 use core::convert::Infallible;
 
-use crate::registers::{self, Registers, Status};
+use crate::regs::{self, Registers, fields::Status};
 
 /// RX error structure which tracks if an error has occurred.
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
@@ -47,7 +47,7 @@ impl RxErrors {
 /// Can be created by [super::AxiUartlite::split]ting a regular AXI UARTLITE structure or
 /// by [Self::steal]ing it unsafely.
 pub struct Rx {
-    pub(crate) regs: registers::MmioRegisters<'static>,
+    pub(crate) regs: regs::MmioRegisters<'static>,
     pub(crate) errors: Option<RxErrors>,
 }
 

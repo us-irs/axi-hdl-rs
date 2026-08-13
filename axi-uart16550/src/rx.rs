@@ -3,9 +3,12 @@ use core::convert::Infallible;
 
 use crate::{
     DEFAULT_RX_TRIGGER_LEVEL,
-    registers::{
-        self, FifoControl, InterruptEnable, InterruptId2, InterruptIdentification, LineStatus,
-        RxFifoTrigger,
+    regs::{
+        self,
+        fields::{
+            FifoControl, InterruptEnable, InterruptId2, InterruptIdentification, LineStatus,
+            RxFifoTrigger,
+        },
     },
 };
 
@@ -59,7 +62,7 @@ impl RxErrors {
 /// by [Self::steal]ing it unsafely.
 pub struct Rx {
     /// Internal MMIO register structure.
-    pub(crate) regs: registers::MmioRegisters<'static>,
+    pub(crate) regs: regs::MmioRegisters<'static>,
     pub(crate) errors: Option<RxErrors>,
     // Tracked locally because the FIFO Control register is write-only while LCR's divisor
     // latch access bit is cleared, which is the case for the entire operational lifetime of
@@ -85,13 +88,13 @@ impl Rx {
     /// The same safey rules specified in [super::AxiUart16550::new] apply.
     pub const unsafe fn steal(base_addr: usize) -> Self {
         Self {
-            regs: unsafe { registers::Registers::new_mmio_at(base_addr) },
+            regs: unsafe { regs::Registers::new_mmio_at(base_addr) },
             errors: None,
             rx_fifo_trigger: DEFAULT_RX_TRIGGER_LEVEL,
         }
     }
 
-    pub(crate) fn new(regs: registers::MmioRegisters<'static>) -> Self {
+    pub(crate) fn new(regs: regs::MmioRegisters<'static>) -> Self {
         Self {
             regs,
             errors: None,
