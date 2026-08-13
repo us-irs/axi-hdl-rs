@@ -1,7 +1,12 @@
 [package]
 name = "axi-ad9361"
 version = "0.1.0"
+description = "AXI AD9361 IP core driver"
+rust-version = "1.88.0"
 edition = "2024"
+homepage = "https://github.com/us-irs/axi-hdl-rs"
+repository = "https://github.com/us-irs/axi-hdl-rs"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 derive-mmio = "0.8"
