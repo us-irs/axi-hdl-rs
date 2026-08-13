@@ -1,6 +1,6 @@
 [package]
 name = "axi-uart16550"
-version = "0.3.0"
+version = "0.3.1"
 description = "AXI UART16550 IP core driver"
 rust-version = "1.87.0"
 edition = "2024"
