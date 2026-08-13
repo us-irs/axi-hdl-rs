@@ -195,6 +195,16 @@ impl Drop for TxFuture<'_, '_> {
     fn drop(&mut self) {
         let mut tx = Tx::new(unsafe { self.reg_block.clone() });
         tx.disable_interrupt();
+        // On cancellation, clear the stale buffer pointer so a spurious or future interrupt
+        // for this waker slot can never dereference it.
+        if !TX_DONE[self.waker_idx].load(core::sync::atomic::Ordering::Relaxed) {
+            critical_section::with(|cs| {
+                let context_ref = TX_CONTEXTS[self.waker_idx].borrow(cs);
+                let mut context_mut = context_ref.borrow_mut();
+                context_mut.slice.set_null();
+                context_mut.progress = 0;
+            });
+        }
     }
 }
 

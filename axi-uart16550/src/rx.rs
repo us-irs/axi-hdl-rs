@@ -5,6 +5,7 @@ use crate::{
     DEFAULT_RX_TRIGGER_LEVEL,
     registers::{
         self, FifoControl, InterruptEnable, InterruptId2, InterruptIdentification, LineStatus,
+        RxFifoTrigger,
     },
 };
 
@@ -60,6 +61,12 @@ pub struct Rx {
     /// Internal MMIO register structure.
     pub(crate) regs: registers::MmioRegisters<'static>,
     pub(crate) errors: Option<RxErrors>,
+    // Tracked locally because the FIFO Control register is write-only while LCR's divisor
+    // latch access bit is cleared, which is the case for the entire operational lifetime of
+    // the driver, so the configured trigger level can not be read back from hardware. Currently
+    // always set to DEFAULT_RX_TRIGGER_LEVEL, but tracked as a field to allow the trigger level
+    // to become configurable in the future without revisiting this constraint.
+    rx_fifo_trigger: RxFifoTrigger,
 }
 
 impl Rx {
@@ -80,11 +87,16 @@ impl Rx {
         Self {
             regs: unsafe { registers::Registers::new_mmio_at(base_addr) },
             errors: None,
+            rx_fifo_trigger: DEFAULT_RX_TRIGGER_LEVEL,
         }
     }
 
     pub(crate) fn new(regs: registers::MmioRegisters<'static>) -> Self {
-        Self { regs, errors: None }
+        Self {
+            regs,
+            errors: None,
+            rx_fifo_trigger: DEFAULT_RX_TRIGGER_LEVEL,
+        }
     }
 
     /// Read the RX FIFO.
@@ -149,7 +161,7 @@ impl Rx {
     pub fn reset_fifo(&mut self) {
         self.regs.write_iir_or_fcr(
             FifoControl::builder()
-                .with_rx_fifo_trigger(DEFAULT_RX_TRIGGER_LEVEL)
+                .with_rx_fifo_trigger(self.rx_fifo_trigger)
                 .with_dma_mode_sel(false)
                 .with_reset_tx_fifo(false)
                 .with_reset_rx_fifo(true)
@@ -188,10 +200,9 @@ impl Rx {
         buf: &mut [u8; 16],
     ) -> usize {
         let mut read = 0;
-        // It is guaranteed that we can read the FIFO trigger level.
+        // There is a guaranteed amount of data we can read.
         if int_id2 == InterruptId2::RxDataAvailable {
-            let trigger_level = FifoControl::new_with_raw_value(self.regs.read_iir_or_fcr());
-            (0..trigger_level.rx_fifo_trigger().as_num() as usize).for_each(|i| {
+            (0..self.rx_fifo_trigger.as_num() as usize).for_each(|i| {
                 buf[i] = self.read_fifo_unchecked();
                 read += 1;
             });

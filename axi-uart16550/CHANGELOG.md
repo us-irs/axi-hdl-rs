@@ -8,11 +8,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 # [unreleased]
 
-# [v0.3.0] 2026-08-12
+# [v0.3.0] 2026-08-13
 
 - Removed `unsafe` for Async TX constructor again, the special case does not warrant an `unsafe`
   attribute.
 - Adds optional `portable-atomic` feature for portable atomic operations
+- Fixed `Rx` reading the RX FIFO trigger level back from the write-only FIFO Control register,
+  which returned garbage instead of the configured trigger level. The trigger level is now
+  tracked locally.
+- Fixed a use-after-cancellation issue where a dropped `TxFuture` left a stale buffer pointer
+  in its waker slot, which a spurious or later interrupt could dereference.
 
 # [v0.2.1] 2026-06-08
 
