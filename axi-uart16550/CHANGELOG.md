@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 # [unreleased]
 
+# [v0.3.1] 2026-08-13
+
+- Fixed bug in TX interrupt handler where data could be read from the FIFO when none
+  was available
+
 # [v0.3.0] 2026-08-13
 
 - TX Async implementation was optimized and now uses three atomic types instead of a mutex
@@ -41,7 +46,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 Initial release.
 
-[unreleased]: https://github.com/us-irs/axi-hdl-rs/compare/axi-uart16550-v0.3.0...HEAD
+[unreleased]: https://github.com/us-irs/axi-hdl-rs/compare/axi-uart16550-v0.3.1...HEAD
+[v0.3.1]: https://github.com/us-irs/axi-hdl-rs/compare/axi-uart16550-v0.3.0...axi-uart16550-v0.3.1
 [v0.3.0]: https://github.com/us-irs/axi-hdl-rs/releases/tag/axi-uart16550-v0.3.0
 [v0.2.1]: https://egit.irs.uni-stuttgart.de/rust/axi-uart16550/compare/v0.2.0...v0.2.1
 [v0.2.0]: https://egit.irs.uni-stuttgart.de/rust/axi-uart16550/compare/v0.1.0...v0.2.0
