@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 # [v0.3.0] 2026-08-13
 
+- TX Async implementation was optimized and now uses three atomic types instead of a mutex
+  guarded context structure
 - Removed `unsafe` for Async TX constructor again, the special case does not warrant an `unsafe`
   attribute.
 - Adds optional `portable-atomic` feature for portable atomic operations
