@@ -200,18 +200,15 @@ impl Rx {
     #[inline]
     pub fn on_interrupt_data_available_or_char_timeout(
         &mut self,
-        int_id2: InterruptId2,
+        _int_id2: InterruptId2,
         buf: &mut [u8; 16],
     ) -> usize {
+        // `RxDataAvailable` is documented to guarantee at least `rx_fifo_trigger` bytes are
+        // present, but we still gate every read on `has_data()` rather than trusting that count
+        // blindly: reading the FIFO once it is actually empty returns stale/undefined data
+        // instead of erroring, so any mismatch between the assumed and actual trigger behavior
+        // (soft-core IP quirks, interrupt latency) would otherwise read garbage bytes.
         let mut read = 0;
-        // There is a guaranteed amount of data we can read.
-        if int_id2 == InterruptId2::RxDataAvailable {
-            (0..self.rx_fifo_trigger.as_num() as usize).for_each(|i| {
-                buf[i] = self.read_fifo_unchecked();
-                read += 1;
-            });
-        }
-        // Read the rest of the FIFO.
         while self.has_data() && read < 16 {
             buf[read] = self.read_fifo_unchecked();
             read += 1;

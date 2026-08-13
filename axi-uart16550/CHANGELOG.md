@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 # [unreleased]
 
+# [v0.3.1] 2026-08-13
+
+- Fixed bug in TX interrupt handler where data could be read from the FIFO when none
+  was available
+
 # [v0.3.0] 2026-08-13
 
 - TX Async implementation was optimized and now uses three atomic types instead of a mutex
