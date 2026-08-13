@@ -122,7 +122,7 @@ impl AxiUartlite {
     /// Returns [nb::Error::WouldBlock] if the TX FIFO is full.
     #[inline]
     pub fn write_fifo(&mut self, data: u8) -> nb::Result<(), Infallible> {
-        self.tx.write_fifo(data).unwrap();
+        self.tx.write_fifo(data)?;
         if let Some(errors) = self.tx.errors {
             self.handle_status_reg_errors(errors);
         }
