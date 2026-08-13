@@ -2,6 +2,8 @@ pub use fields::InterfaceMode;
 
 /// Register field types shared by the top-level, ADC and DAC register blocks.
 pub mod fields {
+    use arbitrary_int::u12;
+
     /// Core reset/clock-enable register, `AXI_ADC_REG_RSTN`/`AXI_DAC_REG_RSTN`.
     #[bitbybit::bitfield(
         u32,
@@ -27,6 +29,42 @@ pub mod fields {
         /// bring the core out of reset (second write of `enable()`, and the only write of
         /// `Adc::reset_pulse()`/`Dac::release_reset()`).
         pub const RELEASED: Self = Self::ZERO.with_mmcm_reset_n(true).with_reset_n(true);
+    }
+
+    /// Dynamic Reconfiguration Port (DRP) access request, `AXI_{ADC,DAC}_REG_DRP_CNTRL`. Shared
+    /// layout between the ADC and DAC register blocks.
+    #[bitbybit::bitfield(
+        u32,
+        default = 0,
+        debug,
+        defmt_bitfields(feature = "defmt"),
+        forbid_overlaps
+    )]
+    pub struct DrpControl {
+        /// Read (true) or write (false) the addressed DRP register.
+        #[bit(28, rw)]
+        drp_rwn: bool,
+        /// DRP address; designs with multiple DRP primitives select between them here.
+        #[bits(16..=27, rw)]
+        drp_address: u12,
+    }
+
+    /// DRP access status, `AXI_{ADC,DAC}_REG_DRP_STATUS`. Shared layout between the ADC and DAC
+    /// register blocks.
+    #[bitbybit::bitfield(
+        u32,
+        default = 0,
+        debug,
+        defmt_bitfields(feature = "defmt"),
+        forbid_overlaps
+    )]
+    pub struct DrpStatus {
+        /// The DRP-driven MMCM/PLL has achieved lock.
+        #[bit(17, r)]
+        drp_locked: bool,
+        /// A DRP access is pending (busy).
+        #[bit(16, r)]
+        drp_status: bool,
     }
 
     /// Single-Data-Rate vs. Double-Data-Rate digital interface selection.
@@ -256,6 +294,43 @@ pub mod adc {
             pin_mode: PinMode,
         }
 
+        /// External-sync trigger control, `AXI_ADC_REG_CNTRL_2`.
+        #[bitbybit::bitfield(
+            u32,
+            default = 0,
+            debug,
+            defmt_bitfields(feature = "defmt"),
+            forbid_overlaps
+        )]
+        pub struct Control2 {
+            /// Issue a manual external synchronization event.
+            #[bit(8, rw)]
+            manual_sync_request: bool,
+            /// Disarm the external synchronization trigger mechanism.
+            #[bit(2, rw)]
+            ext_sync_disarm: bool,
+            /// Arm the external synchronization trigger mechanism.
+            #[bit(1, rw)]
+            ext_sync_arm: bool,
+        }
+
+        /// CRC and output format control, `AXI_ADC_REG_CNTRL_3`.
+        #[bitbybit::bitfield(
+            u32,
+            default = 0,
+            debug,
+            defmt_bitfields(feature = "defmt"),
+            forbid_overlaps
+        )]
+        pub struct Control3 {
+            /// Enable CRC generation.
+            #[bit(8, rw)]
+            crc_en: bool,
+            /// Select the output format decode mode.
+            #[bits(0..=7, rw)]
+            custom_control: u8,
+        }
+
         /// Per-channel enable/format control, `AXI_ADC_REG_CHAN_CNTRL`.
         ///
         /// `loopback_enable` (bit 11) is not documented in the no-OS `axi_adc_core.h` header,
@@ -396,6 +471,71 @@ pub mod adc {
             #[bits(0..=3, rw)]
             data_sel: u4,
         }
+
+        /// IDELAY tap control, `AXI_ADC_REG_DELAY_CNTRL`.
+        ///
+        /// Deprecated since HDL v9 in favor of [`super::super::fields::DrpControl`]-based delay
+        /// access on newer interface primitives, but still present in the register map.
+        #[bitbybit::bitfield(
+            u32,
+            default = 0,
+            debug,
+            defmt_bitfields(feature = "defmt"),
+            forbid_overlaps
+        )]
+        pub struct DelayControl {
+            /// A 0 -> 1 transition on this bit initiates a delay access.
+            #[bit(17, rw)]
+            delay_sel: bool,
+            /// Read (true) or write (false) the addressed delay tap.
+            #[bit(16, rw)]
+            delay_rwn: bool,
+            /// Delay tap address; the valid range depends on the interface pins.
+            #[bits(8..=15, rw)]
+            delay_address: u8,
+            /// Delay write data. A value of 1 corresponds to (1/200) ns.
+            #[bits(0..=4, rw)]
+            delay_wdata: u5,
+        }
+
+        /// IDELAY tap status, `AXI_ADC_REG_DELAY_STATUS`. See [`DelayControl`] for deprecation
+        /// notes.
+        #[bitbybit::bitfield(
+            u32,
+            default = 0,
+            debug,
+            defmt_bitfields(feature = "defmt"),
+            forbid_overlaps
+        )]
+        pub struct DelayStatusLegacy {
+            /// The delay tap has locked.
+            #[bit(9, r)]
+            delay_locked: bool,
+            /// A delay access is pending (busy).
+            #[bit(8, r)]
+            delay_status: bool,
+            /// Current delay tap value.
+            #[bits(0..=4, r)]
+            delay_rdata: u5,
+        }
+
+        /// User interface FIFO status, `AXI_ADC_REG_UI_STATUS`. Overflow/underflow bits are
+        /// write-1-to-clear.
+        #[bitbybit::bitfield(
+            u32,
+            default = 0,
+            debug,
+            defmt_bitfields(feature = "defmt"),
+            forbid_overlaps
+        )]
+        pub struct UiStatus {
+            /// User interface FIFO overflow occurred.
+            #[bit(2, rw)]
+            ui_ovf: bool,
+            /// User interface FIFO underflow occurred.
+            #[bit(1, rw)]
+            ui_unf: bool,
+        }
     }
 
     /// Per-channel ADC register block.
@@ -424,29 +564,29 @@ pub mod adc {
     pub struct Registers {
         reset: Reset,
         adc_control1: fields::Control1,
-        adc_control2: u32,
-        adc_control3: u32,
+        adc_control2: fields::Control2,
+        adc_control3: fields::Control3,
         _gap2: u32,
         adc_clock_freq: u32,
         adc_clock_ratio: u32,
         #[mmio(PureRead)]
         adc_status: fields::Status,
-        adc_delay_control: u32,
+        adc_delay_control: fields::DelayControl,
         #[mmio(PureRead)]
-        adc_delay_status_legacy: u32,
+        adc_delay_status_legacy: fields::DelayStatusLegacy,
         #[mmio(PureRead)]
         adc_sync_status: u32,
         _gap3: u32,
-        adc_drp_control: u32,
+        adc_drp_control: crate::regs::fields::DrpControl,
         #[mmio(PureRead)]
-        adc_drp_status: u32,
+        adc_drp_status: crate::regs::fields::DrpStatus,
         adc_drp_wdata: u32,
         #[mmio(PureRead)]
         adc_drp_rdata: u32,
         adc_config_write: u32,
         #[mmio(PureRead)]
         adc_config_read: u32,
-        ui_status: u32,
+        ui_status: fields::UiStatus,
         adc_config_control: u32,
         _gap4: [u32; 0x04],
         user_control_1: u32,
@@ -472,7 +612,7 @@ pub mod adc {
 
 /// DAC register block, `AXI_DAC_REG_*`.
 pub mod dac {
-    use crate::regs::dac::regs::{Control1, Control2, RateControl};
+    use crate::regs::dac::regs::{Control1, Control2, RateControl, UiStatus};
     pub use crate::regs::fields::Reset;
 
     /// DAC-specific register field types.
@@ -513,7 +653,7 @@ pub mod dac {
         )]
         pub struct Control1 {
             /// Manually request a synchronization pulse.
-            #[bit(3, rw)]
+            #[bit(8, rw)]
             manual_sync_request: bool,
             /// Disarm external synchronization.
             #[bit(2, rw)]
@@ -573,6 +713,27 @@ pub mod dac {
             /// Rate divider value, see [`crate::dac::Dac::set_rate_div`].
             #[bits(0..=7, rw)]
             rate: u8,
+        }
+
+        /// User interface FIFO status, `AXI_DAC_REG_UI_STATUS`. Overflow/underflow bits are
+        /// write-1-to-clear.
+        #[bitbybit::bitfield(
+            u32,
+            default = 0,
+            debug,
+            defmt_bitfields(feature = "defmt"),
+            forbid_overlaps
+        )]
+        pub struct UiStatus {
+            /// The data interface is busy.
+            #[bit(4, r)]
+            if_busy: bool,
+            /// User interface FIFO overflow occurred.
+            #[bit(1, rw)]
+            ui_ovf: bool,
+            /// User interface FIFO underflow occurred.
+            #[bit(0, rw)]
+            ui_unf: bool,
         }
 
         /// Data source mux, written to a channel's [`ChannelDataSource`] register.
@@ -712,13 +873,14 @@ pub mod dac {
         _gap9: u32,
         dac_sync_status: u32,
         _gap10: u32,
-        dac_drp_control: u32,
-        dac_drp_status: u32,
+        dac_drp_control: crate::regs::fields::DrpControl,
+        #[mmio(PureRead)]
+        dac_drp_status: crate::regs::fields::DrpStatus,
         dac_drp_wdata: u32,
         dac_drp_rdata: u32,
         dac_custom_read: u32,
         dac_custom_write: u32,
-        dac_ui_status: u32,
+        dac_ui_status: UiStatus,
         dac_custom_control: u32,
         _gap11: [u32; 4],
         dac_user_control_1: u32,
