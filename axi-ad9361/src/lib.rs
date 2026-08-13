@@ -1,9 +1,23 @@
+//! # Driver for the Xilinx/AMD-ADI AXI AD9361 IP core
+//!
+//! This is a native Rust driver for the [ADI AXI AD9361 IP
+//! core](https://wiki.analog.com/resources/fpga/docs/axi_ad9361), an FPGA-fabric IP core that
+//! implements the CMOS/LVDS digital interface expected by an AD9361 RF transceiver, exposing
+//! separate ADC and DAC datapaths.
+//!
+//! [`AxiAd9361`] is the entry point: it owns the shared (version/config/FPGA-info) registers and
+//! hands out at most one [`adc::Adc`] and one [`dac::Dac`] instance, each covering the register
+//! sub-block for that datapath.
 #![no_std]
+#![deny(missing_docs)]
 
 use core::num::NonZero;
 
+/// ADC driver.
 pub mod adc;
+/// DAC driver.
 pub mod dac;
+/// Raw register definitions.
 pub mod regs;
 
 use adc::Adc;
@@ -11,6 +25,8 @@ use dac::Dac;
 use regs::fields::R1Mode;
 pub use regs::fields::{Config, FpgaInfo};
 
+/// Driver for the shared registers of the AXI AD9361 IP core, and factory for the ADC/DAC
+/// drivers.
 pub struct AxiAd9361 {
     base_addr_ip_core: usize,
     mmio: regs::MmioRegisters<'static>,
@@ -41,11 +57,13 @@ impl AxiAd9361 {
         }
     }
 
+    /// Read the IP core's capability/configuration register.
     #[inline]
     pub fn read_config(&mut self) -> regs::fields::Config {
         self.mmio.read_config()
     }
 
+    /// Read the FPGA part information encoded by Vivado at build time.
     #[inline]
     pub fn read_fpga_info(&mut self) -> regs::fields::FpgaInfo {
         self.mmio.read_fpga_info()

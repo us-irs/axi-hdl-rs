@@ -4,6 +4,7 @@ use arbitrary_int::{traits::Integer as _, u4};
 
 use crate::regs::{self, fields::R1Mode};
 
+/// Driver for the DAC (transmit) datapath of the AXI AD9361 IP core.
 pub struct Dac {
     mmio: regs::dac::MmioRegisters<'static>,
 }
@@ -50,6 +51,7 @@ impl Dac {
         }
     }
 
+    /// Asserts and then releases the DAC core reset, enabling the clock.
     pub fn enable(&mut self) {
         self.mmio.write_reset(crate::regs::fields::Reset::ZERO);
         self.release_reset();
@@ -116,22 +118,26 @@ impl Dac {
             ));
     }
 
+    /// Get a handle to the given channel's registers.
     pub fn channel_mut(&mut self, channel: u4) -> regs::dac::MmioChannel<'_> {
         self.mmio
             .dac_channels(channel.as_usize())
             .expect("DAC channel retrieval failed unexpectedly")
     }
 
+    /// Requests a channel data path synchronization pulse.
     pub fn synchronize(&mut self) {
         self.mmio
             .write_control1(regs::dac::regs::Control1::ZERO.with_sync(true));
     }
 
+    /// Read the DAC's interface status register.
     #[inline]
     pub fn read_interface_status(&mut self) -> u32 {
         self.mmio.read_interface_status()
     }
 
+    /// Get a mutable handle to the raw DAC registers.
     #[inline]
     pub fn regs(&mut self) -> &mut regs::dac::MmioRegisters<'static> {
         &mut self.mmio
