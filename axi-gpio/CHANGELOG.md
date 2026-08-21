@@ -8,6 +8,4 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 # [unreleased]
 
-Initial implementation of the driver: `Input`/`Output` pin access via `ChannelId`/`Pin<N>`
-ownership tokens, single- and dual-channel `AxiGpio` constructors, and an interrupt-driven
-`asynch` module for awaiting per-channel events.
+Initial release
