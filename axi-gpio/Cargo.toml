@@ -1,7 +1,7 @@
 [package]
-name = "axi-uart16550"
-version = "0.3.1"
-description = "AXI UART16550 IP core driver"
+name = "axi-gpio"
+version = "0.1.0"
+description = "AXI GPIO IP core driver"
 rust-version = "1.87.0"
 edition = "2024"
 homepage = "https://github.com/us-irs/axi-hdl-rs"
@@ -12,17 +12,11 @@ license = "MIT OR Apache-2.0"
 derive-mmio = "0.8"
 bitbybit = "2"
 arbitrary-int = "2"
-nb = "1"
-libm = "0.2"
-critical-section = "1"
-thiserror = { version = "2", default-features = false }
-fugit = "0.5"
+static_assertions = "1"
+embedded-hal = "1"
 embedded-hal-async = "1"
-embedded-hal-nb = "1"
-embedded-io = "0.7"
-embedded-io-async = "0.7"
 embassy-sync = "0.8"
-raw-buffer = "0.1"
+thiserror = { version = "2", default-features = false }
 portable-atomic = { version = "1", optional = true }
 
 defmt = { version = "1", optional = true }
@@ -35,6 +29,3 @@ default = ["1-waker"]
 8-wakers = []
 16-wakers = []
 32-wakers = []
-
-[dev-dependencies]
-approx = "0.5"

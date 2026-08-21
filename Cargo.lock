@@ -52,6 +52,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "axi-gpio"
+version = "0.1.0"
+dependencies = [
+ "arbitrary-int",
+ "bitbybit",
+ "defmt",
+ "derive-mmio",
+ "embassy-sync",
+ "embedded-hal",
+ "embedded-hal-async",
+ "portable-atomic",
+ "static_assertions",
+ "thiserror",
+]
+
+[[package]]
 name = "axi-uart16550"
 version = "0.3.1"
 dependencies = [
@@ -245,9 +261,9 @@ dependencies = [
 
 [[package]]
 name = "fugit"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04ae150b98ef345142101da0a0b4ccfcc577bc8f5b9778b852e9427c667654d3"
+checksum = "e88e2d6927cbdbbbdc85fc550cee539e63ae0f76445f13094833f63bb65b62f5"
 dependencies = [
  "gcd",
 ]

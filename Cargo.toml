@@ -5,4 +5,5 @@ members = [
   "axi-uart16550",
   "axi-uartlite",
   "axi-dma",
+  "axi-gpio",
 ]
